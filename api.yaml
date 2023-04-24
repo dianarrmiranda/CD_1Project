@@ -104,8 +104,12 @@ paths:
           content:
             application/json:
               schema:
-                type: integer
-              example: 43
+                oneOf:
+                  - type: integer
+                    example: 43
+                  - type: string
+                    format: uri
+                    example: http://localhost/file/31231234
         '404':
           description: Music not found
 
