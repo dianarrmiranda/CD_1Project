@@ -1,1 +1,2 @@
+torchmetrics>=0.11.4 
 demucs>=4.0.0
