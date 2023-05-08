@@ -7,20 +7,21 @@ from schemas import Music, Progress, Track
 
 app = FastAPI()
 
-idx = 0
+idx = -1
 defaultTracks = [
     Track(name = "drums", track_id = 1),
     Track(name = "bass", track_id = 2),
     Track(name = "vocals", track_id = 3),
     Track(name = "other", track_id = 4)
 ]
+musicData = []
 
 # Music
 
 
 @app.get("/music")
 async def listAll() -> List[Music]:
-    pass
+    return musicData
 
 
 @app.get("/music/{music_id}")
@@ -36,18 +37,26 @@ async def submit(mp3file: UploadFile = File(...)) -> Music:
 
     metadata = mediainfo_json(mp3file.file)
     title = metadata["format"]["tags"]["title"]
+    try:
+        band = metadata["format"]["tags"]["band"]
+    except:
+        band = ""
 
     with open("../music/{:0>3d}_{}.mp3".format(idx,title),"wb") as buffer:
         shutil.copyfileobj(mp3file.file,buffer)
     mp3file.file.close()
 
-    return Music(music_id=idx, name=title, band="", tracks=defaultTracks)
+    music = Music(music_id=idx, name=title, band=band, tracks=defaultTracks)
+
+    musicData.append(music)
+
+    return music
     
 
 
 @app.post("/music/{music_id}")
 async def process(music_id: int, tracks_ids: list):
-    # procurar música com music_id usando os tracks da lista
+    # procurar música com music_id e passar os tracks da lista
     pass
 
 
@@ -68,7 +77,7 @@ async def getJob() -> List[int]:
 
 @app.get("/reset")
 async def reset():
-    
+
     dir = "../music"
     for f in os.listdir(dir):
         os.remove(os.path.join(dir, f))
