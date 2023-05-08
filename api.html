@@ -689,6 +689,20 @@
   <script>
     // Script section to load models into a JS Var
     var defs = {}
+            defs["Instrument"] = {
+  "type" : "object",
+  "properties" : {
+    "name" : {
+      "type" : "string",
+      "example" : "guitar"
+    },
+    "track" : {
+      "type" : "string",
+      "format" : "uri",
+      "example" : "http://localhost/file/12314"
+    }
+  }
+};
             defs["Job"] = {
   "type" : "object",
   "properties" : {
@@ -757,6 +771,32 @@
   }
 };
             defs["OneOfJobTrack_id"] = {};
+            defs["Progress"] = {
+  "type" : "object",
+  "properties" : {
+    "progress" : {
+      "type" : "integer"
+    },
+    "instruments" : {
+      "type" : "array",
+      "example" : [ {
+        "name" : "guitar",
+        "track" : "http://localhost/file/12314"
+      }, {
+        "name" : "bass",
+        "track" : "http://localhost/file/34567"
+      } ],
+      "items" : {
+        "$ref" : "#/components/schemas/Instrument"
+      }
+    },
+    "final" : {
+      "type" : "string",
+      "format" : "uri",
+      "example" : "http://localhost/file/31231234"
+    }
+  }
+};
             defs["Track"] = {
   "type" : "object",
   "properties" : {
@@ -1105,7 +1145,7 @@ except ApiException as e:
                         <div class="pull-right"></div>
                         <div class="clearfix"></div>
                         <p></p>
-                        <p class="marked">Requisitar o processamento da música &lt;music_id&gt; com apenas os instrumentos listados através do seu identificador num ficheiro JSON submetido.</p>
+                        <p class="marked">Requisitar o processamento asincrono (este método deve retornar imediatamente) da música &lt;music_id&gt; com apenas os instrumentos listados através do seu identificador num ficheiro JSON submetido. O sistema deve fazer a separação da música nos seus vários instrumentos, dando origem a um ficheiro por instrumento. No final, o sistema deverá misturar os instrumentos seleccionados num unico ficheiro.</p>
                         <p></p>
                         <br />
                         <pre class="prettyprint language-html prettyprinted" data-type="post"><code><span class="pln">/music/{music_id}</span></code></pre>
@@ -1407,6 +1447,14 @@ except ApiException as e:
                             <div class="tab-content" style='margin-bottom: 10px;'>
                             </div>
 
+                            <h3> Status: 405 - Track not found </h3>
+
+                            <ul class="nav nav-tabs nav-tabs-examples" >
+                            </ul>
+
+                            <div class="tab-content" style='margin-bottom: 10px;'>
+                            </div>
+
                         </article>
                       </div>
                       <hr>
@@ -1419,7 +1467,7 @@ except ApiException as e:
                         <div class="pull-right"></div>
                         <div class="clearfix"></div>
                         <p></p>
-                        <p class="marked">Requisitar o estado de processamento de uma música, quando o estado é 100% a resposta deve incluir o url do ficheiro final.</p>
+                        <p class="marked">Requisitar o estado de processamento de uma música, quando o estado é 100% a resposta deve incluir o url do ficheiro final. Quando a pista de um instrumento estiver completo deverá retornar o link para o ficheiro de cada instrumento (permitindo ao utilizador fazer o download e reprodução do ficheiro). No final haverá também um link para o ficheiro final misturado (contendo os instrumentos seleccionados).</p>
                         <p></p>
                         <br />
                         <pre class="prettyprint language-html prettyprinted" data-type="get"><code><span class="pln">/music/{music_id}</span></code></pre>
@@ -1462,7 +1510,7 @@ public class MusicApiExample {
         MusicApi apiInstance = new MusicApi();
         Long musicId = 789; // Long | ID da musica a procesar
         try {
-            'Integer' result = apiInstance.progress(musicId);
+            Progress result = apiInstance.progress(musicId);
             System.out.println(result);
         } catch (ApiException e) {
             System.err.println("Exception when calling MusicApi#progress");
@@ -1481,7 +1529,7 @@ public class MusicApiExample {
         MusicApi apiInstance = new MusicApi();
         Long musicId = 789; // Long | ID da musica a procesar
         try {
-            'Integer' result = apiInstance.progress(musicId);
+            Progress result = apiInstance.progress(musicId);
             System.out.println(result);
         } catch (ApiException e) {
             System.err.println("Exception when calling MusicApi#progress");
@@ -1501,7 +1549,7 @@ MusicApi *apiInstance = [[MusicApi alloc] init];
 
 // Estado de processamento de uma musica
 [apiInstance progressWith:musicId
-              completionHandler: ^('Integer' output, NSError* error) {
+              completionHandler: ^(Progress output, NSError* error) {
                             if (output) {
                                 NSLog(@"%@", output);
                             }
@@ -1552,7 +1600,7 @@ namespace Example
             try
             {
                 // Estado de processamento de uma musica
-                'Integer' result = apiInstance.progress(musicId);
+                Progress result = apiInstance.progress(musicId);
                 Debug.WriteLine(result);
             }
             catch (Exception e)
@@ -1677,10 +1725,8 @@ except ApiException as e:
   "content" : {
     "application/json" : {
       "schema" : {
-        "type" : "integer",
-        "x-content-type" : "application/json"
-      },
-      "example" : 43
+        "$ref" : "#/components/schemas/Progress"
+      }
     }
   }
 };
@@ -1728,7 +1774,7 @@ except ApiException as e:
                         <div class="pull-right"></div>
                         <div class="clearfix"></div>
                         <p></p>
-                        <p class="marked">Submeter ficheiros de áudio em formato MP3. De seguida o sistema deverá partir o ficheiro áudio em trechos de duração mais curta que podem ser analisados paralelamente. Em resposta à submissão do ficheiro de áudio, o serviço deverá retornar um ficheiro JSON contendo um identificador do trabalho (music_id), e uma lista de identificadores das pistas de instrumentos (cada identificador deverá corresponder a um instrumento) assim como um link para o ficheiro de cada instrumento (permitindo ao utilizador fazer o download e reprodução do ficheiro).</p>
+                        <p class="marked">Submeter ficheiros de áudio em formato MP3. Em resposta à submissão do ficheiro de áudio, o serviço deverá retornar um ficheiro JSON contendo um identificador do trabalho (music_id), e uma lista de identificadores das pistas de instrumentos (cada identificador deverá corresponder a um instrumento). Este método apenas armaneza e analisa os metadados da música.</p>
                         <p></p>
                         <br />
                         <pre class="prettyprint language-html prettyprinted" data-type="post"><code><span class="pln">/music</span></code></pre>
@@ -2051,7 +2097,7 @@ except ApiException as e:
                         <div class="pull-right"></div>
                         <div class="clearfix"></div>
                         <p></p>
-                        <p class="marked">estatísticas de um dado Job (tamanho do ficheiro, link para os vários ficheiros, tempos de processamento, número de worker requests, etc.)</p>
+                        <p class="marked">estatísticas de um dado Job (tamanho do ficheiro, link para os vários ficheiros, tempos de processamento, music_id, etc.)</p>
                         <p></p>
                         <br />
                         <pre class="prettyprint language-html prettyprinted" data-type="get"><code><span class="pln">/job/{job_id}</span></code></pre>
@@ -2338,7 +2384,7 @@ except ApiException as e:
                                 </div>
                             </div>
 
-                            <h3> Status: 404 - Music not found </h3>
+                            <h3> Status: 404 - Job not found </h3>
 
                             <ul class="nav nav-tabs nav-tabs-examples" >
                             </ul>
@@ -2834,7 +2880,7 @@ except ApiException as e:
             <div id="api-_footer">
               <p>Suggestions, contact, support and error reporting;
                   <div class="app-desc">Information URL: <a href="https://helloreverb.com">https://helloreverb.com</a></div>
-                  <div class="app-desc">Contact Info: <a href="apiteam@swagger.io">apiteam@swagger.io</a></div>
+                  <div class="app-desc">Contact Info: <a href="hello@helloreverb.com">hello@helloreverb.com</a></div>
               </p>
                 <div class="license-info">All rights reserved</div>
                 <div class="license-url">http://apache.org/licenses/LICENSE-2.0.html</div>

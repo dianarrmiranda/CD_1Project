@@ -23,7 +23,7 @@ paths:
       tags:
         - music
       summary: Adicionar nova música
-      description: Submeter ficheiros de áudio em formato MP3. De seguida o sistema deverá partir o ficheiro áudio em trechos de duração mais curta que podem ser analisados paralelamente. Em resposta à submissão do ficheiro de áudio, o serviço deverá retornar um ficheiro JSON contendo um identificador do trabalho (music_id), e uma lista de identificadores das pistas de instrumentos (cada identificador deverá corresponder a um instrumento) assim como um link para o ficheiro de cada instrumento (permitindo ao utilizador fazer o download e reprodução do ficheiro).
+      description: Submeter ficheiros de áudio em formato MP3. Em resposta à submissão do ficheiro de áudio, o serviço deverá retornar um ficheiro JSON contendo um identificador do trabalho (music_id), e uma lista de identificadores das pistas de instrumentos (cada identificador deverá corresponder a um instrumento). Este método apenas armaneza e analisa os metadados da música.
       operationId: submit
       requestBody:
         content:
@@ -60,7 +60,7 @@ paths:
       tags:
         - music
       summary: Processar uma musica
-      description: Requisitar o processamento da música <music_id> com apenas os instrumentos listados através do seu identificador num ficheiro JSON submetido. 
+      description: Requisitar o processamento asincrono (este método deve retornar imediatamente) da música <music_id> com apenas os instrumentos listados através do seu identificador num ficheiro JSON submetido. O sistema deve fazer a separação da música nos seus vários instrumentos, dando origem a um ficheiro por instrumento. No final, o sistema deverá misturar os instrumentos seleccionados num unico ficheiro.
       operationId: process
       parameters:
         - name: music_id
@@ -84,11 +84,13 @@ paths:
           description: successful operation
         '404':
           description: Music not found
+        '405':
+          description: Track not found
     get:
       tags:
         - music
       summary: Estado de processamento de uma musica
-      description: Requisitar o estado de processamento de uma música, quando o estado é 100% a resposta deve incluir o url do ficheiro final.
+      description: Requisitar o estado de processamento de uma música, quando o estado é 100% a resposta deve incluir o url do ficheiro final. Quando a pista de um instrumento estiver completo deverá retornar o link para o ficheiro de cada instrumento (permitindo ao utilizador fazer o download e reprodução do ficheiro). No final haverá também um link para o ficheiro final misturado (contendo os instrumentos seleccionados).
       operationId: progress
       parameters:
         - name: music_id
@@ -104,12 +106,7 @@ paths:
           content:
             application/json:
               schema:
-                oneOf:
-                  - type: integer
-                    example: 43
-                  - type: string
-                    format: uri
-                    example: http://localhost/file/31231234
+                $ref: '#/components/schemas/Progress'
         '404':
           description: Music not found
 
@@ -137,7 +134,7 @@ paths:
       tags:
         - system
       summary: Informação sobre um Job
-      description: estatísticas de um dado Job (tamanho do ficheiro, link para os vários ficheiros, tempos de processamento, número de worker requests, etc.)
+      description: estatísticas de um dado Job (tamanho do ficheiro, link para os vários ficheiros, tempos de processamento, music_id, etc.)
       operationId: job_stats
       parameters:
         - name: job_id
@@ -155,7 +152,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Job'
         '404':
-          description: Music not found
+          description: Job not found
   /reset:
     post:
       tags:
@@ -198,6 +195,32 @@ components:
           type: integer
           format: int64
           example: 1
+    Instrument:
+      type: object
+      properties:
+        name:
+          type: string
+          example: guitar
+        track:
+          type: string
+          format: uri
+          example: http://localhost/file/12314
+    Progress:
+      type: object
+      properties:
+        progress:
+          type: integer
+        instruments:
+          type: array
+          items:
+            $ref: '#/components/schemas/Instrument'
+          example: [{'name': 'guitar', 'track': 'http://localhost/file/12314'}, {'name': 'bass', 'track': 'http://localhost/file/34567'}
+            ]
+        final:
+          type: string
+          format: uri
+          example: http://localhost/file/31231234
+
     Job:
       type: object
       properties:
