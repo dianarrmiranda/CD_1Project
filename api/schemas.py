@@ -2,7 +2,7 @@ from pydantic import BaseModel
 from typing import List, Union
 
 
-class Tracks(BaseModel):
+class Track(BaseModel):
     name: str
     track_id: int
 
@@ -11,7 +11,7 @@ class Music(BaseModel):
     music_id: int
     name: str
     band: str
-    tracks: List[Tracks]
+    tracks: List[Track]
 
 
 class Instrument(BaseModel):

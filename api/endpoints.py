@@ -1,10 +1,19 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, UploadFile, File
 from typing import List
+from pydub.utils import mediainfo_json
+import shutil
 
-from schemas import Music, Progress
+from schemas import Music, Progress, Track
 
 app = FastAPI()
 
+idx = 0
+defaultTracks = [
+    Track(name = "drums", track_id = 1),
+    Track(name = "bass", track_id = 2),
+    Track(name = "vocals", track_id = 3),
+    Track(name = "other", track_id = 4)
+]
 
 # Music
 
@@ -20,9 +29,20 @@ async def getProgress() -> Progress:
 
 
 @app.post("/music")
-async def submit(audio: bytes) -> Music:
+async def submit(mp3file: UploadFile = File(...)) -> Music:
     # adiciona nova música
-    pass
+    global idx
+    idx += 1
+
+    metadata = mediainfo_json(mp3file.file)
+    title = metadata["format"]["tags"]["title"]
+
+    with open("../tracks/" + str(idx) + "_" + title + ".mp3","wb") as buffer:
+        shutil.copyfileobj(mp3file.file,buffer)
+    mp3file.file.close()
+
+    return Music(music_id=idx, name=title, band="", tracks=defaultTracks)
+    
 
 
 @app.post("/music/{music_id}")
@@ -41,11 +61,11 @@ async def listJobs() -> List[int]:
 
 
 @app.get("/job/{job_id}")
-async def listJobs() -> List[int]:
+async def getJob() -> List[int]:
     # lista ids dos jobs
     pass
 
 
 @app.get("/reset")
-async def listJobs():
+async def reset():
     pass
