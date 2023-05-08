@@ -1,6 +1,7 @@
 # mp3 and wav
 *.mp3
 *.wav
+tracks/
 
 
 # Byte-compiled / optimized / DLL files
