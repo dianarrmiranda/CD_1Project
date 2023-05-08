@@ -1,7 +1,7 @@
 from fastapi import FastAPI, UploadFile, File
 from typing import List
 from pydub.utils import mediainfo_json
-import shutil
+import shutil, os
 
 from schemas import Music, Progress, Track
 
@@ -37,7 +37,7 @@ async def submit(mp3file: UploadFile = File(...)) -> Music:
     metadata = mediainfo_json(mp3file.file)
     title = metadata["format"]["tags"]["title"]
 
-    with open("../tracks/" + str(idx) + "_" + title + ".mp3","wb") as buffer:
+    with open("../music/{:0>3d}_{}.mp3".format(idx,title),"wb") as buffer:
         shutil.copyfileobj(mp3file.file,buffer)
     mp3file.file.close()
 
@@ -68,4 +68,11 @@ async def getJob() -> List[int]:
 
 @app.get("/reset")
 async def reset():
-    pass
+    
+    dir = "../music"
+    for f in os.listdir(dir):
+        os.remove(os.path.join(dir, f))
+
+    dir = "../tracks"
+    for f in os.listdir(dir):
+        os.remove(os.path.join(dir, f))
