@@ -1,18 +1,31 @@
 from fastapi import FastAPI, UploadFile, File, Request
 from typing import List
 from pydub.utils import mediainfo_json
-import shutil, os
+import shutil, os, signal, sys
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
 from schemas import Music, Progress, Track
+from server import Server
 
+server = Server()
 
 app = FastAPI()
 
-templates = Jinja2Templates(directory="../templates")
-app.mount("/static", StaticFiles(directory="../static"), name="static")
+templates = Jinja2Templates(directory="../../templates")
+
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
+
+def signal_handler(self, sig, frame):
+    print('\nDone!')
+    server.close()
+    sys.exit(0)
+
+signal.signal(signal.SIGINT, signal_handler)
+print('Press Ctrl+C to exit...')
+
 
 idx = -1
 defaultTracks = [
@@ -21,14 +34,13 @@ defaultTracks = [
     Track(name = "vocals", track_id = 3),
     Track(name = "other", track_id = 4)
 ]
-musicData = []
 
 # Music
 
 
 @app.get("/music")
 async def listAll() -> List[Music]:
-    return musicData
+    return server.listAll()
 
 
 @app.get("/music/{music_id}")
@@ -50,12 +62,13 @@ async def submit(mp3file: UploadFile = File(...)) -> Music:
         band = ""
 
     with open("static/music/{:0>3d}_{}.mp3".format(idx,title),"wb") as buffer:
+        mp3file.file.seek(0)
         shutil.copyfileobj(mp3file.file,buffer)
     mp3file.file.close()
 
     music = Music(music_id=idx, name=title, band=band, tracks=defaultTracks)
 
-    musicData.append(music)
+    server.addMusic(music)
 
     return music
     
