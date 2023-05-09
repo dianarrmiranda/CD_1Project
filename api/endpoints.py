@@ -1,11 +1,18 @@
-from fastapi import FastAPI, UploadFile, File
+from fastapi import FastAPI, UploadFile, File, Request
 from typing import List
 from pydub.utils import mediainfo_json
 import shutil, os
+from fastapi.templating import Jinja2Templates
+from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
 
 from schemas import Music, Progress, Track
 
+
 app = FastAPI()
+
+templates = Jinja2Templates(directory="../templates")
+app.mount("/static", StaticFiles(directory="../static"), name="static")
 
 idx = -1
 defaultTracks = [
@@ -42,7 +49,7 @@ async def submit(mp3file: UploadFile = File(...)) -> Music:
     except:
         band = ""
 
-    with open("../music/{:0>3d}_{}.mp3".format(idx,title),"wb") as buffer:
+    with open("static/music/{:0>3d}_{}.mp3".format(idx,title),"wb") as buffer:
         shutil.copyfileobj(mp3file.file,buffer)
     mp3file.file.close()
 
@@ -78,10 +85,16 @@ async def getJob() -> List[int]:
 @app.get("/reset")
 async def reset():
 
-    dir = "../music"
+    dir = "static/music"
     for f in os.listdir(dir):
         os.remove(os.path.join(dir, f))
 
-    dir = "../tracks"
+    dir = "static/tracks"
     for f in os.listdir(dir):
         os.remove(os.path.join(dir, f))
+
+
+@app.get("/")
+async def home(request: Request):
+    music_list = await listAll()
+    return templates.TemplateResponse("index.html", {"request": request, "music_list": music_list})
