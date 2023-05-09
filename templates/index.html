@@ -1,32 +1,25 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Music List</title>
-    <link href="{{ url_for('static', path='/styles.css') }}" rel="stylesheet">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upload MP3</title>
 </head>
 <body>
-    <h1>Music List</h1>
+    <h1>Upload MP3</h1>
+    <form action="/music" method="post" enctype="multipart/form-data">
+        <input type="file" name="mp3file" accept="audio/mpeg">
+        <button type="submit">Upload</button>
+    </form>
+    <h2>Lista de músicas</h2>
     <ul>
         {% for music in music_list %}
-            <li>
-                <h2>{{ music.name }}</h2>
-                <p>Band: {{ music.band }}</p>
-                <p>Tracks:</p>
-                <ul>
-                    {% for track in music.tracks %}
-                        <li>{{ track.name }}</li>
-                    {% endfor %}
-                </ul>
-            </li>
+        <li>
+            {{ music.name }}
+            {% if music.band %}- {{ music.band }}{% endif %}
+        </li>
         {% endfor %}
     </ul>
-
-    <h2>Upload New Music</h2>
-    <form action="/music" method="post" enctype="multipart/form-data">
-        <input type="file" name="mp3file">
-        <input type="submit" value="Upload">
-    </form>
-
-    <script src="{{ url_for('static', path='/static/js/script.js') }}"></script>
+    
 </body>
 </html>

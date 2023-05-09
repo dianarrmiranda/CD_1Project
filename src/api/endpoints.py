@@ -5,7 +5,6 @@ import shutil, os, signal, sys
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
-
 from schemas import Music, Progress, Track
 from server import Server
 
@@ -15,7 +14,7 @@ app = FastAPI()
 
 templates = Jinja2Templates(directory="../../templates")
 
-app.mount("/static", StaticFiles(directory="static"), name="static")
+app.mount("/static", StaticFiles(directory="../../static"), name="static")
 
 
 def signal_handler(self, sig, frame):
@@ -49,7 +48,7 @@ async def getProgress() -> Progress:
 
 
 @app.post("/music")
-async def submit(mp3file: UploadFile = File(...)) -> Music:
+async def submit(request: Request, mp3file: UploadFile = File(...)) -> Music:
     # adiciona nova música
     global idx
     idx += 1
@@ -61,7 +60,7 @@ async def submit(mp3file: UploadFile = File(...)) -> Music:
     except:
         band = ""
 
-    with open("static/music/{:0>3d}_{}.mp3".format(idx,title),"wb") as buffer:
+    with open("../../music_files/{:0>3d}_{}.mp3".format(idx,title),"wb") as buffer:
         mp3file.file.seek(0)
         shutil.copyfileobj(mp3file.file,buffer)
     mp3file.file.close()
@@ -70,8 +69,8 @@ async def submit(mp3file: UploadFile = File(...)) -> Music:
 
     server.addMusic(music)
 
-    return music
-    
+    music_list = await listAll()
+    return templates.TemplateResponse("index.html", {"request": request, "music_list": music_list})
 
 
 @app.post("/music/{music_id}")
@@ -107,7 +106,7 @@ async def reset():
         os.remove(os.path.join(dir, f))
 
 
-@app.get("/")
+@app.get("/", response_class=HTMLResponse)
 async def home(request: Request):
     music_list = await listAll()
     return templates.TemplateResponse("index.html", {"request": request, "music_list": music_list})
