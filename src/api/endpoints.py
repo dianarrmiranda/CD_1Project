@@ -1,4 +1,4 @@
-from fastapi import FastAPI, UploadFile, File, Request
+from fastapi import FastAPI, Form, UploadFile, File, Request
 from typing import List
 from pydub.utils import mediainfo_json
 import shutil, os, signal, sys
@@ -54,9 +54,12 @@ async def submit(request: Request, mp3file: UploadFile = File(...)) -> Music:
     idx += 1
 
     metadata = mediainfo_json(mp3file.file)
-    title = metadata["format"]["tags"]["title"]
     try:
-        band = metadata["format"]["tags"]["band"]
+        title = metadata["format"]["tags"]["title"]
+    except:
+        title = "Unknown"
+    try:
+        band = metadata["format"]["tags"]["artist"]
     except:
         band = ""
 
@@ -72,15 +75,18 @@ async def submit(request: Request, mp3file: UploadFile = File(...)) -> Music:
     music_list = await listAll()
     return templates.TemplateResponse("index.html", {"request": request, "music_list": music_list})
 
+@app.post("/music/{music_id}", response_class=HTMLResponse)
+async def process(request: Request, music_id: int, tracks: str = Form(...)):
+    print("music_id: ", music_id)
+    tracks = tracks.split(",")
+    print("tracks: ", tracks)
 
-@app.post("/music/{music_id}")
-async def process(music_id: int, tracks_ids: list):
-    # procurar música com music_id e passar os tracks da lista
-    pass
+    music = server.getMusic(music_id)
 
+    print("music: ", music)
 
-# System
-
+    music_list = await listAll()
+    return templates.TemplateResponse("index.html", {"request": request, "music_list": music_list})
 
 @app.get("/job")
 async def listJobs() -> List[int]:

@@ -15,11 +15,25 @@
     <ul>
         {% for music in music_list %}
         <li>
-            {{ music.name }}
+            {{music.music_id}} - {{ music.name }}
             {% if music.band %}- {{ music.band }}{% endif %}
         </li>
         {% endfor %}
     </ul>
+    <form id="myForm" action="/music/{{music_id}}" method="post">
+        <input id="musicIdInput" type="text" name="music_id" placeholder="Music ID">
+        <input type="text" name="tracks" placeholder="Tracks (comma-separated)">
+        <button type="submit">Process</button>
+    </form>
+    <script>
+        document.getElementById("myForm").addEventListener("submit", function(event) {
+            // Atualizar o atributo action do formulário com o valor do music_id
+            var musicId = document.getElementById("musicIdInput").value;
+            this.action = "/music/" + musicId;
+        });
+    </script>
+    
     
 </body>
 </html>
+
