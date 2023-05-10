@@ -81,10 +81,8 @@ async def process(request: Request, music_id: int, tracks: str = Form(...)):
     tracks = tracks.split(",")
     print("tracks: ", tracks)
 
-    music = server.getMusic(music_id)
-
-    print("music: ", music)
-
+    server.split_music(music_id)
+    
     music_list = await listAll()
     return templates.TemplateResponse("index.html", {"request": request, "music_list": music_list})
 

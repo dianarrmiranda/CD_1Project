@@ -40,7 +40,7 @@ def main(args):
 
     # store the model
     for source, name in zip(sources, model.sources):
-        stem = f'{args.o}/{name}.wav'
+        stem = f'{args.o}/{name}{args.p}.wav'
         save_audio(source, str(stem), samplerate=model.samplerate)
 
 
@@ -48,6 +48,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Split an audio track', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('-i', type=str, help='input mp3', default='music.mp3')
     parser.add_argument('-o', type=str, help='output folder', default='tracks')
+    parser.add_argument('-p', type=str, help='Part index', default='Final')
     args = parser.parse_args()
 
     main(args)
