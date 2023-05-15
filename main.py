@@ -15,10 +15,15 @@ from demucs.apply import apply_model
 from demucs.pretrained import get_model
 from demucs.audio import AudioFile, save_audio
 
+from pydub import AudioSegment
+
+# limit the number of thread used by pytorch
+import torch
+torch.set_num_threads(1)
+
 
 logging.basicConfig(level=logging.INFO, format='%(message)s')
 logger = logging.getLogger(__name__)
-
 
 def main(args):
     # get the model
@@ -40,6 +45,15 @@ def main(args):
     for source, name in zip(sources, model.sources):
         stem = f'{args.o}/{name}.wav'
         save_audio(source, str(stem), samplerate=model.samplerate)
+
+    # load the vocals and drums to merge them
+    vocals = AudioSegment.from_wav('tracks/vocals.wav')
+    drums = AudioSegment.from_wav('tracks/drums.wav')
+    # merge audio
+    #audio = vocals + drums
+    audio = vocals.overlay(drums, position=0)
+    # store the merged audio
+    audio.export('merged.wav', format='wav')    
 
 
 if __name__ == '__main__':
