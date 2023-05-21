@@ -4,7 +4,7 @@ from pydub.utils import mediainfo_json
 import shutil, os, signal, sys
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse
-from fastapi.staticfiles import StaticFiles
+#from fastapi.staticfiles import StaticFiles
 from schemas import Music, Progress, Track
 from server import Server
 
@@ -14,7 +14,7 @@ app = FastAPI()
 
 templates = Jinja2Templates(directory="../../templates")
 
-app.mount("/static", StaticFiles(directory="../../static"), name="static")
+#app.mount("/static", StaticFiles(directory="../../static"), name="static")
 
 
 def signal_handler(self, sig, frame):
@@ -63,7 +63,7 @@ async def submit(request: Request, mp3file: UploadFile = File(...)) -> Music:
     except:
         band = ""
 
-    with open("../../music_files/{:0>3d}_{}.mp3".format(idx,title),"wb") as buffer:
+    with open("static/music/{:0>3d}_{}.mp3".format(idx,title),"wb") as buffer:
         mp3file.file.seek(0)
         shutil.copyfileobj(mp3file.file,buffer)
     mp3file.file.close()
@@ -75,16 +75,18 @@ async def submit(request: Request, mp3file: UploadFile = File(...)) -> Music:
     music_list = await listAll()
     return templates.TemplateResponse("index.html", {"request": request, "music_list": music_list})
 
+
 @app.post("/music/{music_id}", response_class=HTMLResponse)
 async def process(request: Request, music_id: int, tracks: str = Form(...)):
     print("music_id: ", music_id)
-    tracks = tracks.split(",")
-    print("tracks: ", tracks)
+    tracks_names = tracks.split(",")
+    print("tracks: ", tracks_names)
 
-    server.split_music(music_id)
+    server.split_music(music_id, tracks_names)
     
     music_list = await listAll()
     return templates.TemplateResponse("index.html", {"request": request, "music_list": music_list})
+
 
 @app.get("/job")
 async def listJobs() -> List[int]:

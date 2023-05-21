@@ -4,6 +4,7 @@ import signal, sys
 from pydub import AudioSegment
 import json
 from io import BytesIO
+from fastapi.staticfiles import StaticFiles
 
 class Server:
 
@@ -11,8 +12,12 @@ class Server:
         self.musicData = []
         self.connection = pika.BlockingConnection(pika.ConnectionParameters('localhost'))
         self.channel = self.connection.channel()
-        self.channel.queue_declare(queue="music")
+        self.channel.queue_declare(queue="processed_parts")
         self.channel.queue_declare(queue="music_parts")
+
+        # Consumir as partes da música da fila "processed_parts"
+        #self.channel.basic_qos(prefetch_count=1)
+        #self.channel.basic_consume(queue="music_parts", on_message_callback=self.process_music_part)
     
     def sendMsg(self):
         self.channel.basic_publish(exchange='', routing_key='hello', body='Hello World!')
@@ -30,6 +35,7 @@ class Server:
 
 
     def getMusic(self, music_id):
+        print(self.musicData)
         return self.musicData[music_id]
     
 
@@ -40,13 +46,13 @@ class Server:
         self.connection.close()
 
 
-    def split_music(self, music_id: int):
+    def split_music(self, music_id: int, tracks_names: list):
         # Obter a música pelo id
         music = self.getMusic(music_id)
         num_parts = 4
 
         # Carregar o arquivo de áudio
-        audio = AudioSegment.from_file('../../music_files/00'+ str(music_id) + '_' + music.name + '.mp3', format='mp3')
+        audio = AudioSegment.from_file('static/music/00'+ str(music_id) + '_' + music.name + '.mp3', format='mp3')
 
         # Calcular a duração de cada parte
         part_duration = len(audio) // num_parts
@@ -61,6 +67,7 @@ class Server:
             part_data = {
                 'music_id': music_id,
                 'part_index': i,
+                'instruments': tracks_names,
                 'part_audio': output.getvalue().decode('latin1')  # Converte os bytes em string
             }
             self.send_music_part(part_data)
