@@ -7,8 +7,8 @@ from fastapi.responses import HTMLResponse
 #from fastapi.staticfiles import StaticFiles
 from schemas import Music, Progress, Track
 from server import Server
+import uvicorn, threading
 
-server = Server()
 
 app = FastAPI()
 
@@ -116,3 +116,13 @@ async def reset():
 async def home(request: Request):
     music_list = await listAll()
     return templates.TemplateResponse("index.html", {"request": request, "music_list": music_list})
+
+
+if __name__ == "__main__":
+    server = Server()
+    server.start()
+
+    uvicorn.run(app, host="0.0.0.0", port=8000)
+
+    server.stop()
+    server.join()

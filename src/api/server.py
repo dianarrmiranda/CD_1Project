@@ -5,12 +5,16 @@ from pydub import AudioSegment
 import json
 from io import BytesIO
 from fastapi.staticfiles import StaticFiles
+import threading
 
-class Server:
+class Server(threading.Thread):
 
     def __init__(self):
+        super().__init__()
         self.musicData = []
-        self.connection = pika.BlockingConnection(pika.ConnectionParameters('localhost'))
+        self.connection = pika.BlockingConnection(pika.ConnectionParameters('localhost', heartbeat=60, blocked_connection_timeout=10))
+        self.deamon = True
+        self.isRunning = True
         self.channel = self.connection.channel()
         self.channel.queue_declare(queue="processed_parts")
         self.channel.queue_declare(queue="music_parts")
@@ -19,9 +23,21 @@ class Server:
         #self.channel.basic_qos(prefetch_count=1)
         #self.channel.basic_consume(queue="music_parts", on_message_callback=self.process_music_part)
     
-    def sendMsg(self):
-        self.channel.basic_publish(exchange='', routing_key='hello', body='Hello World!')
+
+    def run(self):
+        while self.isRunning:
+            self.connection.process_data_events(time_limit=1)
+
+
+    def stop(self):
+        print(' [*] Stopping server...')
+        self.isRunning = False
+        self.connection.process_data_events(time_limit=1)
+        if self.connection.is_open:
+            self.connection.close()
+        print(' [*] Server stopped')
     
+
     def send_music_part(self, part_data):
         self.channel.basic_publish(
             exchange='',
@@ -70,8 +86,8 @@ class Server:
                 'instruments': tracks_names,
                 'part_audio': output.getvalue().decode('latin1')  # Converte os bytes em string
             }
-            self.send_music_part(part_data)
-
+            
+            self.connection.add_callback_threadsafe(lambda: self.send_music_part(part_data))
 
 
 
