@@ -85,7 +85,8 @@ class Worker:
         for track in os.listdir("../tracks/" + str(music_id)):
             if track[:-5] in tracks_names:
                 self.send_processed_music_part(track, part_index, music_id)
-            os.remove("../tracks/" + str(music_id) + "/" + track)
+            if os.path.exists("../tracks/" + str(music_id) + "/" + track):
+                os.remove("../tracks/" + str(music_id) + "/" + track)
         
         # Remover o arquivo temporário
         os.remove(temp_audio_path)

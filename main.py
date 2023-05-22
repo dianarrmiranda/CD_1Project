@@ -10,13 +10,10 @@ __license__ = 'MIT'
 import logging
 import argparse
 import subprocess
-import torch
 
 from demucs.apply import apply_model
 from demucs.pretrained import get_model
 from demucs.audio import AudioFile, save_audio
-
-torch.set_num_threads(1)
 
 logging.basicConfig(level=logging.INFO, format='%(message)s')
 logger = logging.getLogger(__name__)

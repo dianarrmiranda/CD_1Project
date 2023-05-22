@@ -4,24 +4,31 @@ import signal, sys
 from pydub import AudioSegment
 import json
 from io import BytesIO
-from fastapi.staticfiles import StaticFiles
 import threading
 
 class Server(threading.Thread):
 
     def __init__(self):
+
+        # Threading
         super().__init__()
-        self.musicData = []
-        self.connection = pika.BlockingConnection(pika.ConnectionParameters('localhost', heartbeat=60, blocked_connection_timeout=10))
         self.deamon = True
         self.isRunning = True
+
+        # Músicas a serem processadas
+        self.musicData = []
+        # Partes processadas
+        self.processedParts = {} # Instrumento -> [Parte1, Parte2, ...] 
+
+        # Rabbit MQ - Enviar não processadas
+        self.connection = pika.BlockingConnection(pika.ConnectionParameters('localhost', heartbeat=60, blocked_connection_timeout=10))
         self.channel = self.connection.channel()
-        self.channel.queue_declare(queue="processed_parts")
         self.channel.queue_declare(queue="music_parts")
 
-        # Consumir as partes da música da fila "processed_parts"
-        #self.channel.basic_qos(prefetch_count=1)
-        #self.channel.basic_consume(queue="music_parts", on_message_callback=self.process_music_part)
+        # Rabbit MQ - Receber processadas
+        self.channel.queue_declare(queue="processed_parts")
+        self.channel.basic_qos(prefetch_count=1)
+        self.channel.basic_consume(queue="processed_parts", on_message_callback=self.receive_music_parts)
     
 
     def run(self):
@@ -68,13 +75,17 @@ class Server(threading.Thread):
         num_parts = 4
 
         # Carregar o arquivo de áudio
-        audio = AudioSegment.from_file('static/00'+ str(music_id) + '_' + music.name + '.mp3', format='mp3')
+        audio = AudioSegment.from_file('static/unprocessed/00'+ str(music_id) + '_' + music.name + '.mp3', format='mp3')
 
         # Calcular a duração de cada parte
         part_duration = len(audio) // num_parts
 
         # Dividir a música em partes
         parts = [audio[i * part_duration: (i + 1) * part_duration] for i in range(num_parts)]
+
+        # Adicionar ao dicionário
+        for track in tracks_names:
+            self.processedParts[track] = []
 
         # Enviar as partes para a fila do RabbitMQ
         for i, part in enumerate(parts):
@@ -90,4 +101,35 @@ class Server(threading.Thread):
             self.connection.add_callback_threadsafe(lambda: self.send_music_part(part_data))
 
 
+    def receive_music_parts(self, ch, method, properties, body):
 
+        part_data = json.loads(body)
+        music_id = part_data['music_id']
+        part_index = part_data['part_index']
+        part_audio = part_data['part_audio'].encode('latin1')  # Converte a string em bytes
+        instrument = part_data['instrument']
+
+        # Carregar a parte do áudio
+        audio_part = AudioSegment.from_file(BytesIO(part_audio), format='wav')
+
+        print(f' [x] Received part {part_index} of music {music_id} and of instrument {instrument}')
+
+        ch.basic_ack(delivery_tag=method.delivery_tag)
+
+        self.processedParts[instrument].append(audio_part)
+
+        if len(self.processedParts[instrument]) == 4:
+            self.join_music_parts(music_id, instrument)
+
+
+    def join_music_parts(self, music_id, instrument):
+
+        print(f' [*] Joining parts of music {music_id} and of instrument {instrument}')
+
+        joinedParts = self.processedParts[instrument][0]
+        
+        for part in self.processedParts[instrument][1:]:
+            joinedParts += part
+
+        # Salvar a música
+        joinedParts.export("static/processed/" + str(music_id) + "_" + instrument + ".wav", format="wav")

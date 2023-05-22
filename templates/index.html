@@ -11,6 +11,13 @@
         <input type="file" name="mp3file" accept="audio/mpeg">
         <button type="submit">Upload</button>
     </form>
+    <h2>Lista de tracks disponíveis</h2>
+    <ul>
+        <li>1 -> Drums</li>
+        <li>2 -> Bass</li>
+        <li>3 -> Vocals</li>
+        <li>4 -> Other</li>
+    </ul>
     <h2>Lista de músicas</h2>
     <ul>
         {% for music in music_list %}
@@ -22,7 +29,7 @@
     </ul>
     <form id="myForm" action="/music/{{music_id}}" method="post">
         <input id="musicIdInput" type="text" name="music_id" placeholder="Music ID">
-        <input type="text" name="tracks" placeholder="Tracks (comma-separated)">
+        <input type="text" name="tracks" placeholder="Tracks by id (comma-separated)">
         <button type="submit">Process</button>
     </form>
     <script>
