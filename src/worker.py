@@ -4,7 +4,7 @@ import json
 from pydub import AudioSegment
 from io import BytesIO
 import demucs.separate
-import os
+import os, sys, signal
 import tempfile
 import torch
 
@@ -26,6 +26,13 @@ class Worker:
     def start(self):
         print(' [*] Waiting for music parts. To exit press CTRL+C')
         self.channel.start_consuming()
+
+
+    def signal_handler(self, sig):
+        print('\n [*] Worker done!')
+        sys.exit(0)
+
+    signal.signal(signal.SIGINT, signal_handler)
 
     
     def send_processed_music_part(self, track, part_index, music_id):

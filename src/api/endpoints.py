@@ -17,15 +17,6 @@ templates = Jinja2Templates(directory="../../templates")
 #app.mount("/static", StaticFiles(directory="../../static"), name="static")
 
 
-def signal_handler(self, sig, frame):
-    print('\nDone!')
-    server.close()
-    sys.exit(0)
-
-signal.signal(signal.SIGINT, signal_handler)
-print('Press Ctrl+C to exit...')
-
-
 idx = -1
 defaultTracks = [
     Track(name = "drums", track_id = 1),
@@ -63,7 +54,7 @@ async def submit(request: Request, mp3file: UploadFile = File(...)) -> Music:
     except:
         band = ""
 
-    with open("static/music/{:0>3d}_{}.mp3".format(idx,title),"wb") as buffer:
+    with open("static/{:0>3d}_{}.mp3".format(idx,title),"wb") as buffer:
         mp3file.file.seek(0)
         shutil.copyfileobj(mp3file.file,buffer)
     mp3file.file.close()
@@ -103,13 +94,10 @@ async def getJob() -> List[int]:
 @app.get("/reset")
 async def reset():
 
-    dir = "static/music"
+    dir = "static/"
     for f in os.listdir(dir):
         os.remove(os.path.join(dir, f))
 
-    dir = "static/tracks"
-    for f in os.listdir(dir):
-        os.remove(os.path.join(dir, f))
 
 
 @app.get("/", response_class=HTMLResponse)

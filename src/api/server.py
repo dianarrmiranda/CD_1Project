@@ -68,7 +68,7 @@ class Server(threading.Thread):
         num_parts = 4
 
         # Carregar o arquivo de áudio
-        audio = AudioSegment.from_file('static/music/00'+ str(music_id) + '_' + music.name + '.mp3', format='mp3')
+        audio = AudioSegment.from_file('static/00'+ str(music_id) + '_' + music.name + '.mp3', format='mp3')
 
         # Calcular a duração de cada parte
         part_duration = len(audio) // num_parts
