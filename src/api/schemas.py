@@ -30,4 +30,4 @@ class Job(BaseModel):
     size: int
     time: int # timestamp em segundos
     music_id: int
-    track_id: Union[int,List[int]]
+    track_id: str #Union[int,List[int]]

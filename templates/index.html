@@ -32,18 +32,36 @@
         <input type="text" name="tracks" placeholder="Tracks by id (comma-separated)">
         <button type="submit">Process</button>
     </form>
-    <hr/>
-    <h2>Lista de jobs</h2>
-    <button id="showJobButton" type="button">Mostrar Jobs</button>
+    <form action="/job" method="get" enctype="multipart/form-data">
+        <h2>Lista de jobs</h2>
+        <button id="showJobButton" type="submit">Mostrar Jobs</button>
+        <ul> 
+            {% for job_id in jobs %}
+            <li>
+                Job ID: {{ job_id }}
+                <ul>
+                    <li>Size: {{ jobs[job_id][0] }}</li>
+                    <li>Time: {{ jobs[job_id][1] }}</li>
+                    <li>Music ID: {{ jobs[job_id][2]}}</li>
+                    <li>Track ID: {{ jobs[job_id][3]}}</li>
+                </ul>
+            </li>
+            {% endfor %}
+        </ul>
+    </form>
+    
     <script>
         document.getElementById("myForm").addEventListener("submit", function(event) {
             // Atualizar o atributo action do formulário com o valor do music_id
             var musicId = document.getElementById("musicIdInput").value;
             this.action = "/music/" + musicId;
         });
-
+        
+        document.getElementById("showJobButton").addEventListener("click", function(event) {
+            var jobsList = document.getElementById("jobsList");
+            jobsList.style.display = (jobsList.style.display === "none") ? "block" : "none";
+        });
     </script>
-    
     
 </body>
 </html>

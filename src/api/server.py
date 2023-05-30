@@ -179,5 +179,4 @@ class Server(threading.Thread):
         return self.musicReady
     
     def getJobList(self):
-                        
         return self.jobslist

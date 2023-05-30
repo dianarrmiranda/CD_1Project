@@ -74,8 +74,7 @@ async def submit(request: Request, mp3file: UploadFile = File(...)) -> Music:
     server.addMusic(music)
 
     music_list = await listAll()
-    
-    return templates.TemplateResponse("index.html", {"request": request, "music_list": music_list})
+    return templates.TemplateResponse("index.html", {"request": request,"music_list": music_list})
 
 
 @app.post("/music/{music_id}", response_class=HTMLResponse)
@@ -89,15 +88,14 @@ async def process(request: Request, music_id: int, tracks: str = Form(...)):
     server.split_music(music_id, tracks_names)
     
     music_list = await listAll()
-    return templates.TemplateResponse("index.html", {"request": request, "music_list": music_list})
+    return templates.TemplateResponse("index.html", {"request": request,"music_list": music_list})
 
 
-@app.get("/job")
-async def listJobs() -> List[Job]:
+@app.get("/job", response_class=HTMLResponse)
+async def listJobs(request: Request) -> List[Job]:
     jobs = server.getJobList()
-    return jobs
-
-
+    music_list = await listAll()
+    return templates.TemplateResponse("index.html", {"request": request,"music_list": music_list, "jobs": jobs})
 
 @app.get("/job/{job_id}")
 async def getJob() -> List[int]:
