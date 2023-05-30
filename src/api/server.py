@@ -39,8 +39,8 @@ class Server(threading.Thread):
 
         self.size = {} #music_id - {part_index: size}
 
-
-    
+        self.jobslist = {} #job_id -> (size, time, music_id, track_id)
+        self.job_id = 0
 
     def run(self):
         while self.isRunning:
@@ -100,7 +100,7 @@ class Server(threading.Thread):
 
         # Adicionar ao dicionário
         for track in tracks_names:
-            self.processedParts[music_id] = {track: ()}
+            self.processedParts[music_id] = {track: {}}
 
         # Enviar as partes para a fila do RabbitMQ
         for i, part in enumerate(parts):
@@ -120,7 +120,6 @@ class Server(threading.Thread):
 
 
     def receive_music_parts(self, ch, method, properties, body):
-
         part_data = json.loads(body)
         music_id = part_data['music_id']
         part_index = part_data['part_index']
@@ -128,8 +127,9 @@ class Server(threading.Thread):
         instrument = part_data['instrument']
 
         self.time[music_id][part_index] = time.time() - self.time[music_id][part_index]
-        print(self.time[music_id])
-        print(self.size[music_id])
+
+        self.job_id += 1
+        self.jobslist[self.job_id] = (self.size[music_id][part_index], self.time[music_id][part_index], music_id, instrument)
 
         # Carregar a parte do áudio
         audio_part = AudioSegment.from_file(BytesIO(part_audio), format='wav')
@@ -139,12 +139,13 @@ class Server(threading.Thread):
         ch.basic_ack(delivery_tag=method.delivery_tag)
     
         # Adicionar a parte do áudio ao dicionário
-        self.processedParts[music_id][instrument]= (part_index,audio_part)
+        self.processedParts[music_id][instrument][part_index] = audio_part
 
         # Verificar se todas as partes já foram recebidas
+        print(len(self.processedParts[music_id][instrument]))
+        print(self.num_parts[music_id])
         if len(self.processedParts[music_id][instrument]) == self.num_parts[music_id]:
              self.join_music_parts(music_id, instrument)
-
 
 
     def join_music_parts(self, music_id, instrument):
@@ -176,3 +177,7 @@ class Server(threading.Thread):
 
     def musicReady(self):
         return self.musicReady
+    
+    def getJobList(self):
+                        
+        return self.jobslist

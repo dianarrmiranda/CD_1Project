@@ -5,7 +5,7 @@ import shutil, os, signal, sys
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse
-from schemas import Music, Progress, Track
+from schemas import Music, Progress, Track, Job
 from server import Server
 import uvicorn, threading
 
@@ -33,8 +33,6 @@ tracksDict = {
 }
 
 # Music
-
-
 @app.get("/music")
 async def listAll() -> List[Music]:
     return server.listAll()
@@ -95,11 +93,10 @@ async def process(request: Request, music_id: int, tracks: str = Form(...)):
 
 
 @app.get("/job")
-async def listJobs() -> List[int]:
-    # lista ids dos jobs
+async def listJobs() -> List[Job]:
+    jobs = server.getJobList()
+    return jobs
 
-    
-    pass
 
 
 @app.get("/job/{job_id}")

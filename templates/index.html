@@ -32,12 +32,16 @@
         <input type="text" name="tracks" placeholder="Tracks by id (comma-separated)">
         <button type="submit">Process</button>
     </form>
+    <hr/>
+    <h2>Lista de jobs</h2>
+    <button id="showJobButton" type="button">Mostrar Jobs</button>
     <script>
         document.getElementById("myForm").addEventListener("submit", function(event) {
             // Atualizar o atributo action do formulário com o valor do music_id
             var musicId = document.getElementById("musicIdInput").value;
             this.action = "/music/" + musicId;
         });
+
     </script>
     
     
