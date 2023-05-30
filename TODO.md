@@ -47,8 +47,10 @@ combined_sounds.export("/output/path.wav", format="wav")
 
 
  ## TODO ##
+ Fazer parte do jobs
+ Fault tolerance
  Mudar request body do post music/{music.id} para receber json da lista ids ao inves das strings dos instrumentos
  Dar fix da api toda pra ficar igual ao swagger do professor
- Fazer ficheiro bash pra lançar os workers
+ FEITO - Fazer ficheiro bash pra lançar os workers
  Testar separar em um número de partes baseado no tamanho da música ao invés de um valor fixo
  Consertar aparecer a música no frontend mesmo ela n estando lá

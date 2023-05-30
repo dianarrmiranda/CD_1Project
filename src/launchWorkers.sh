@@ -1,5 +1,5 @@
 #!/bin/bash
-NUM_WORKERS=5
+NUM_WORKERS=7
 
 gnome-terminal --tab --title="Worker 1" -- python3 worker.py
 

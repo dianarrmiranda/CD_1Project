@@ -41,8 +41,13 @@ async def listAll() -> List[Music]:
 
 
 @app.get("/music/{music_id}")
-async def getProgress() -> Progress:
-    pass
+async def getProgress(music_id: int) -> Progress:
+    progress = server.getInstrumentProgress(music_id)
+    
+    for instrument in progress[music_id]:
+        if progress[instrument] == 1:   # 100%
+            pass
+
 
 
 @app.post("/music")
@@ -71,6 +76,7 @@ async def submit(request: Request, mp3file: UploadFile = File(...)) -> Music:
     server.addMusic(music)
 
     music_list = await listAll()
+    
     return templates.TemplateResponse("index.html", {"request": request, "music_list": music_list})
 
 
@@ -91,6 +97,8 @@ async def process(request: Request, music_id: int, tracks: str = Form(...)):
 @app.get("/job")
 async def listJobs() -> List[int]:
     # lista ids dos jobs
+
+    
     pass
 
 

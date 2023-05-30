@@ -84,16 +84,9 @@ class Worker:
         # Enviar partes processadas apenas dos instrumentos solicitados
         
         for track in os.listdir("../tracks/" + str(music_id)):
-            print("track: " + str(track))
-            print("track[-5]: " + str(track[-5]))
-            print("track[:-5]: " + str(track[:-5]))
-            print("part_index: " + str(part_index))
             if track[:-5] in tracks_names and int(track[-5]) == part_index:
-                print("Entrou")
                 self.send_processed_music_part(track, part_index, music_id)
-            if (os.path.exists("../tracks/" + str(music_id) + "/" + (track[:-5] + str(part_index)) + ".wav")) and track[-5] == part_index:
-                print("track apagado: " + ((track[:-5] + str(part_index)) + ".wav"))
-                print("Apagou: " + str(track)) 
+            if (os.path.exists("../tracks/" + str(music_id) + "/" + (track[:-5] + str(part_index)) + ".wav")) and int(track[-5]) == part_index:
                 os.remove("../tracks/" + str(music_id) + "/" + (track[:-5] + str(part_index)) + ".wav")
         
         # Remover o arquivo temporário
