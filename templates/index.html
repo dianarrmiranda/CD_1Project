@@ -34,7 +34,7 @@
     </form>
     <form action="/job" method="get" enctype="multipart/form-data">
         <h2>Lista de jobs</h2>
-        <button id="showJobButton" type="submit">Mostrar Jobs</button>
+        <button id="showJobButton" type="submit">Mostrar todos os Jobs</button>
         <ul> 
             {% for job_id in jobs %}
             <li>
@@ -47,6 +47,13 @@
                 </ul>
             </li>
             {% endfor %}
+        </ul>
+    </form>
+    <form action="/job/{{job_id}}" method="get" enctype="multipart/form-data">
+        <input id="musicIdInput" type="text" name="music_id" placeholder="Music ID">
+        <h2>Job </h2>
+        <button id="showJobButton" type="submit">Ok</button>
+        <ul>
         </ul>
     </form>
     
