@@ -35,12 +35,13 @@ class Server(threading.Thread):
 
         self.num_parts = {} # musica -> num de partes
 
+        self.startTime = {} #music_id - {part_index: time}
         self.time = {} #music_id - {part_index: time}
 
         self.size = {} #music_id - {part_index: size}
 
-        self.jobslist = {} #job_id -> [size, time, music_id, track_id]
-        self.job_id = 0
+        self.jobslist = {} #nJob -> {part_index -> [size, time, music_id, track_id]}
+        self.nJob = -1
         self.controlReceived = {} #music_id -> [part_index]
 
     def run(self):
@@ -83,8 +84,13 @@ class Server(threading.Thread):
     def split_music(self, music_id: int, tracks_names: list):
         # Obter a música pelo id
         music = self.getMusic(music_id)
+        self.startTime[music_id] = {}
         self.time[music_id] = {}
         self.size[music_id] = {}
+        self.controlReceived = {}
+        self.nJob += 1
+        self.jobslist[self.nJob] = {}
+
         # Carregar o arquivo de áudio
         audio = AudioSegment.from_file('static/unprocessed/00'+ str(music_id) + '_' + music.name + '.mp3', format='mp3')
 
@@ -100,8 +106,8 @@ class Server(threading.Thread):
         for track in tracks_names:
             if music_id not in self.processedParts:
                 self.processedParts[music_id] = {}  # Cria um dicionário vazio para a chave `music_id`
-            if track not in self.processedParts[music_id]:
-                self.processedParts[music_id][track] = {}  # Cria um dicionário vazio para a chave `track` dentro de `music_id`
+            
+            self.processedParts[music_id][track] = {}  # Cria um dicionário vazio para a chave `track` dentro de `music_id`
 
         # Enviar as partes para a fila do RabbitMQ
         for i, part in enumerate(parts):
@@ -113,10 +119,8 @@ class Server(threading.Thread):
                 'instruments': tracks_names,
                 'part_audio': output.getvalue().decode('latin1')  # Converte os bytes em string
             }
-
-            self.time[music_id][i] = time.time()
+            self.startTime[music_id][i] = time.time()
             self.size[music_id][i] = len(part_data['part_audio'])
-            self.jobslist[self.job_id] = []
             
             self.connection.add_callback_threadsafe(lambda: self.send_music_part(part_data))
 
@@ -126,22 +130,20 @@ class Server(threading.Thread):
         part_index = part_data['part_index']
         part_audio = part_data['part_audio'].encode('latin1')  # Converte a string em bytes
         instrument = part_data['instrument']
-
+        
         if music_id not in self.controlReceived:
             self.controlReceived[music_id] = []
 
-        self.time[music_id][part_index] = time.time() - self.time[music_id][part_index]
+        self.time[music_id][part_index] = time.time() - self.startTime[music_id][part_index]
         
         if part_index not in self.controlReceived[music_id]:
             self.controlReceived[music_id].append(part_index)
-            self.jobslist[self.job_id] = [self.size[music_id][part_index], self.time[music_id][part_index], music_id, [instrument]]
-            self.job_id += 1
+            self.jobslist[self.nJob][part_index] = [self.size[music_id][part_index], self.time[music_id][part_index], music_id, [instrument]]
         else:
-            inst = self.jobslist[self.job_id-1][-1]
+            inst = self.jobslist[self.nJob][part_index][-1]
             inst.append(instrument)
-            self.jobslist[self.job_id-1] = [self.size[music_id][part_index], self.time[music_id][part_index], music_id, inst]
+            self.jobslist[self.nJob][part_index] = [self.size[music_id][part_index], self.time[music_id][part_index], music_id, inst]
 
-        
         # Carregar a parte do áudio
         audio_part = AudioSegment.from_file(BytesIO(part_audio), format='wav')
 
@@ -177,4 +179,11 @@ class Server(threading.Thread):
         return self.musicReady
     
     def getJobList(self):
-        return self.jobslist
+        count = 0
+        allJobs = {}
+        for key, job in self.jobslist.items():
+            for sub_key, value in job.items():
+                allJobs[count] = value
+                count += 1
+
+        return allJobs
