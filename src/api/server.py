@@ -20,7 +20,7 @@ class Server(threading.Thread):
         # Músicas a serem processadas
         self.musicData = []
         # Partes processadas
-        self.processedParts = {} # musica -> {instrumento -> (part_index, audio_part)}
+        self.processedParts = {} # {musica_id: {instrumento: {part_index: audio_part}}}
         self.musicReady = False
 
         # Rabbit MQ - Enviar não processadas
@@ -98,9 +98,11 @@ class Server(threading.Thread):
         # Dividir a música em partes
         parts = [audio[i * part_duration: (i + 1) * part_duration] for i in range(self.num_parts[music_id])]
 
-        # Adicionar ao dicionário
         for track in tracks_names:
-            self.processedParts[music_id] = {track: {}}
+            if music_id not in self.processedParts:
+                self.processedParts[music_id] = {}  # Cria um dicionário vazio para a chave `music_id`
+            if track not in self.processedParts[music_id]:
+                self.processedParts[music_id][track] = {}  # Cria um dicionário vazio para a chave `track` dentro de `music_id`
 
         # Enviar as partes para a fila do RabbitMQ
         for i, part in enumerate(parts):
@@ -139,35 +141,25 @@ class Server(threading.Thread):
         ch.basic_ack(delivery_tag=method.delivery_tag)
     
         # Adicionar a parte do áudio ao dicionário
+        
         self.processedParts[music_id][instrument][part_index] = audio_part
-
         # Verificar se todas as partes já foram recebidas
-        print(len(self.processedParts[music_id][instrument]))
-        print(self.num_parts[music_id])
         if len(self.processedParts[music_id][instrument]) == self.num_parts[music_id]:
              self.join_music_parts(music_id, instrument)
 
 
     def join_music_parts(self, music_id, instrument):
 
-        print(self.time[music_id])
-        print(self.size[music_id])
-
         print(f' [*] Joining parts of music {music_id} and of instrument {instrument}')
 
-        # Ordenar as partes do áudio por part_index
-        sorted_parts = sorted(self.processedParts[music_id][instrument].items(), key=lambda x: x[0])
-
-        # Juntar as partes do áudio
-        joinedParts = sorted_parts[0][1]
-        for _, part in sorted_parts[1:]:
-            joinedParts += part
-
-        # Salvar a música
+        joinedParts = AudioSegment.empty()
+        
+        for i in range(self.num_parts[music_id]):
+            joinedParts += self.processedParts[music_id][instrument][i]
+            
         joinedParts.export("static/processed/" + str(music_id) + "_" + instrument + ".wav", format="wav")
 
         self.musicReady = True
-
 
     def getInstrumentProgress(self, music_id):
         instrumentProgress = {} # instrumento -> progresso (num partes já processadas/num partes)

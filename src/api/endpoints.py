@@ -80,7 +80,7 @@ async def submit(request: Request, mp3file: UploadFile = File(...)) -> Music:
 @app.post("/music/{music_id}", response_class=HTMLResponse)
 async def process(request: Request, music_id: int, tracks: str = Form(...)):
     print("music_id: ", music_id)
-    tracks_ids = tracks.split(",")
+    tracks_ids = [track.strip() for track in tracks.split(",")]
     tracks_names = [tracksDict[int(id)] for id in tracks_ids]
 
     print("tracks_names: ", tracks_names)
