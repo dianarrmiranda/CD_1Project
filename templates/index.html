@@ -32,44 +32,72 @@
         <input type="text" name="tracks" placeholder="Tracks by id (comma-separated)">
         <button type="submit">Process</button>
     </form>
-    <form action="/job" method="get" enctype="multipart/form-data">
-        <h2>Lista de jobs</h2>
-        <button id="showJobButton" type="submit">Mostrar todos os Jobs</button>
+    <h2>Jobs</h2>
+    <div>
+        <form action="/job" method="get">
+            <button id="showJobButton" type="submit">Mostrar todos os Jobs</button>
+        </form>
+        <form id= "getJob" action="/job/{{jobId}}" method="get">
+            <p>Selecionar um job: </p>
+            <input id="jobIdInput" type="text" placeholder="Job ID">
+            <button id="showJobBtn" type="submit">Ok</button>
+        </form>  
+        {% if jobs %}
         <ul> 
             {% for job_id in jobs %}
-            <li>
-                Job ID: {{ job_id }}
+                <b>Job ID:</b> {{ job_id }}
+                {% for job in jobs[job_id] %}
+                <li style="padding-left: 20px;">
+                    Parte {{ job }} da musica  
+                    <ul style="padding-left: 20px;">
+                        <li>Size: {{ jobs[job_id][job][0] }}</li>
+                        <li>Time: {{ jobs[job_id][job][1] }}</li>
+                        <li>Music ID: {{ jobs[job_id][job][2]}}</li>
+                        <li>Track ID: {{ jobs[job_id][job][3]}}</li>
+                    </ul>
+                </li>
+                {% endfor %}
+            {% endfor %}
+        </ul>
+        {% endif %}
+        {% if job %}
+        <ul>
+            <b>Job Selecionado</b>
+            {% for j in job %}
+            <li style="padding-left: 20px;">
+                Parte ID: {{ j }}
                 <ul>
-                    <li>Size: {{ jobs[job_id][0] }}</li>
-                    <li>Time: {{ jobs[job_id][1] }}</li>
-                    <li>Music ID: {{ jobs[job_id][2]}}</li>
-                    <li>Track ID: {{ jobs[job_id][3]}}</li>
+                    <li>Size: {{ job[j][0] }}</li>
+                    <li>Time: {{ job[j][1] }}</li>
+                    <li>Music ID: {{ job[j][2] }}</li>
+                    <li>Track ID: {{ job[j][3] }}</li>
                 </ul>
             </li>
             {% endfor %}
         </ul>
-    </form>
-    <form action="/job/{{job_id}}" method="get" enctype="multipart/form-data">
-        <input id="musicIdInput" type="text" name="music_id" placeholder="Music ID">
-        <h2>Job </h2>
-        <button id="showJobButton" type="submit">Ok</button>
-        <ul>
-        </ul>
-    </form>
-    
-    <script>
-        document.getElementById("myForm").addEventListener("submit", function(event) {
-            // Atualizar o atributo action do formulário com o valor do music_id
-            var musicId = document.getElementById("musicIdInput").value;
-            this.action = "/music/" + musicId;
-        });
-        
-        document.getElementById("showJobButton").addEventListener("click", function(event) {
-            var jobsList = document.getElementById("jobsList");
-            jobsList.style.display = (jobsList.style.display === "none") ? "block" : "none";
-        });
-    </script>
-    
+        {% endif %}
+
+    </div>
+  
 </body>
+    
+<script>
+    document.getElementById("myForm").addEventListener("submit", function(event) {
+        // Atualizar o atributo action do formulário com o valor do music_id
+        var musicId = document.getElementById("musicIdInput").value;
+        this.action = "/music/" + musicId;
+    });
+    
+    document.getElementById("showJobButton").addEventListener("click", function(event) {
+        this.action = "/job";
+    });
+
+    document.getElementById("showJobBtn").addEventListener("click", function(event) {
+        var jobId = document.getElementById("jobIdInput").value;
+        var form = document.getElementById("getJob");
+        form.action = "/job/" + jobId;
+    });
+
+</script>
 </html>
 

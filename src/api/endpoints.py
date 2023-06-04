@@ -79,11 +79,8 @@ async def submit(request: Request, mp3file: UploadFile = File(...)) -> Music:
 
 @app.post("/music/{music_id}", response_class=HTMLResponse)
 async def process(request: Request, music_id: int, tracks: str = Form(...)):
-    print("music_id: ", music_id)
     tracks_ids = [track.strip() for track in tracks.split(",")]
     tracks_names = [tracksDict[int(id)] for id in tracks_ids]
-
-    print("tracks_names: ", tracks_names)
 
     server.split_music(music_id, tracks_names)
     
@@ -95,12 +92,17 @@ async def process(request: Request, music_id: int, tracks: str = Form(...)):
 async def listJobs(request: Request) -> List[Job]:
     jobs = server.getJobList()
     music_list = await listAll()
-    return templates.TemplateResponse("index.html", {"request": request,"music_list": music_list, "jobs": jobs})
 
-@app.get("/job/{job_id}")
-async def getJob() -> List[int]:
-    # lista ids dos jobs
-    pass
+    return templates.TemplateResponse("index.html", {"request": request, "music_list": music_list, "jobs": jobs})
+
+
+@app.get("/job/{job_id}", response_class=HTMLResponse)
+async def getJob(request: Request, job_id: int) -> Job:
+    job = server.getJobList()[job_id]
+    print(job)
+    music_list = await listAll()
+
+    return templates.TemplateResponse("index.html", {"request": request, "music_list": music_list, "job": job})
 
 
 @app.get("/reset")
@@ -109,7 +111,6 @@ async def reset():
     dir = "static/unprocessed"
     for f in os.listdir(dir):
         os.remove(os.path.join(dir, f))
-
 
 
 @app.get("/", response_class=HTMLResponse)
