@@ -1,4 +1,5 @@
 from math import ceil
+import os
 import time
 from schemas import Music
 import pika
@@ -44,6 +45,9 @@ class Server(threading.Thread):
         self.nJob = -1
         self.controlReceived = {} #jobID -> [part_index]
 
+        self.controlWorkers = {} #jobID -> {part_index -> partData} 
+        self.ctrWork = -1
+
     def run(self):
         while self.isRunning:
             self.connection.process_data_events(time_limit=1)
@@ -64,7 +68,6 @@ class Server(threading.Thread):
             routing_key='music_parts',
             body=json.dumps(part_data)
         )
-
     
     def addMusic(self, music):
         self.musicData.append(music)
@@ -92,6 +95,7 @@ class Server(threading.Thread):
         self.time[self.nJob] = {}
         self.size[self.nJob] = {}
         self.size[self.nJob] = {}
+        self.controlWorkers[self.nJob] = {}
 
         # Carregar o arquivo de áudio
         audio = AudioSegment.from_file('static/unprocessed/00'+ str(music_id) + '_' + music.name + '.mp3', format='mp3')
@@ -99,6 +103,8 @@ class Server(threading.Thread):
         music = self.getMusic(music_id)
         duration = len(audio)  # Duração total da música em milissegundos
         part_duration = 10 * 1000  # Duração desejada de cada parte em milissegundos
+        total_duration_sec = duration / 1000  # Converter a duração total da música para segundos
+        self.timeout = 2 * total_duration_sec  # Ajustar o valor do timeout com base na duração da música
 
         self.num_parts[music_id] = ceil(duration / part_duration)  # Calcular o número de partes arredondando para cima
 
@@ -121,12 +127,32 @@ class Server(threading.Thread):
                 'part_audio': output.getvalue().decode('latin1')  # Converte os bytes em string
             }
 
+            self.controlWorkers[self.nJob][i] = part_data
+
             self.startTime[self.nJob][i] = time.time()
             self.size[self.nJob][i] = len(part_data['part_audio'])
             self.jobslist[self.nJob][i] = []
             self.connection.add_callback_threadsafe(lambda: self.send_music_part(part_data))
+        
+        self.start_timeout(self.nJob, music_id)
 
-    def receive_music_parts(self, ch, method, properties, body):
+    def start_timeout(self, njob, music_id):
+        timer = threading.Timer(self.timeout, lambda: self.check_and_resend_missing_parts(njob, music_id))
+        timer.start()
+
+    def check_and_resend_missing_parts(self, njob, music_id):
+        missing_parts = []
+
+        for part_index in range(self.num_parts[music_id]):
+            if part_index not in self.controlReceived[njob]:
+                missing_parts.append(part_index)
+
+        for missing_part in missing_parts:
+            part_data = self.controlWorkers[njob][missing_part]
+            self.startTime[njob][missing_part] = time.time()
+            self.connection.add_callback_threadsafe(lambda: self.send_music_part(part_data))
+
+    def receive_music_parts(self, ch, method, properties, body):        
         part_data = json.loads(body)
         music_id = part_data['music_id']
         part_index = part_data['part_index']
@@ -134,6 +160,10 @@ class Server(threading.Thread):
         instrument = part_data['instrument']
         njob = int(part_index.split(".")[0])
         index = int(part_index.split(".")[1])
+
+        if self.ctrWork < njob:
+            self.start_timeout(njob, music_id)
+            self.ctrWork = njob
 
         self.time[njob][index] = time.time() - self.startTime[njob][index]
 
@@ -185,3 +215,29 @@ class Server(threading.Thread):
     
     def getJobList(self):
         return self.jobslist
+
+    def reset(self):
+
+        self.workerStatus = {} 
+        self.jobslist = {}
+        self.startTime = {}
+        self.time = {}
+        self.size = {}
+        self.processedParts = {}
+        self.controlReceived = {}
+        self.num_parts = {}
+        self.nJob = 0
+        self.musicReady = False
+        self.musicData = []
+
+        dir = "static/unprocessed"
+        for f in os.listdir(dir):
+            os.remove(os.path.join(dir, f))
+
+        dir = "static/processed"
+        for f in os.listdir(dir):
+            os.remove(os.path.join(dir, f)) 
+
+        if self.connection.is_open:
+            self.channel.queue_purge(queue="music_parts")
+            self.channel.queue_purge(queue="processed_parts")

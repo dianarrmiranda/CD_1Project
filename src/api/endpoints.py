@@ -99,18 +99,19 @@ async def listJobs(request: Request) -> List[Job]:
 @app.get("/job/{job_id}", response_class=HTMLResponse)
 async def getJob(request: Request, job_id: int) -> Job:
     job = server.getJobList()[job_id]
-    print(job)
     music_list = await listAll()
 
     return templates.TemplateResponse("index.html", {"request": request, "music_list": music_list, "job": job})
 
 
-@app.get("/reset")
-async def reset():
+@app.post("/reset", response_class=HTMLResponse)
+async def reset(request: Request):
+    server.reset()
+    global idx
+    idx = -1
+    music_list = await listAll()
 
-    dir = "static/unprocessed"
-    for f in os.listdir(dir):
-        os.remove(os.path.join(dir, f))
+    return templates.TemplateResponse("index.html", {"request": request, "music_list": music_list})
 
 
 @app.get("/", response_class=HTMLResponse)
