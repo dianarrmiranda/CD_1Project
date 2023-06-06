@@ -22,7 +22,7 @@ class Server(threading.Thread):
         self.musicData = []
         # Partes processadas
         self.processedParts = {} # {jobID: {instrumento: {part_index: audio_part}}}
-        self.musicReady = False
+        self.tracksReady = {} # track -> True/False
 
         # Rabbit MQ - Enviar não processadas
         self.connection = pika.BlockingConnection(pika.ConnectionParameters('localhost', heartbeat=60, blocked_connection_timeout=10))
@@ -136,9 +136,11 @@ class Server(threading.Thread):
         
         self.start_timeout(self.nJob, music_id)
 
+
     def start_timeout(self, njob, music_id):
         timer = threading.Timer(self.timeout, lambda: self.check_and_resend_missing_parts(njob, music_id))
         timer.start()
+
 
     def check_and_resend_missing_parts(self, njob, music_id):
         missing_parts = []
@@ -151,6 +153,7 @@ class Server(threading.Thread):
             part_data = self.controlWorkers[njob][missing_part]
             self.startTime[njob][missing_part] = time.time()
             self.connection.add_callback_threadsafe(lambda: self.send_music_part(part_data))
+
 
     def receive_music_parts(self, ch, method, properties, body):        
         part_data = json.loads(body)
@@ -202,7 +205,25 @@ class Server(threading.Thread):
             
         joinedParts.export("static/processed/" + str(music_id) + "_" + instrument + ".wav", format="wav")
 
-        self.musicReady = True
+        self.tracksReady = True
+        
+
+
+    def joinInstruments(self, music_id, njob):
+        print(f' [*] Joining instruments of music {music_id} from job {njob}')
+
+        instruments = self.jobslist[njob][0][-1]
+        joinedParts = AudioSegment.empty()
+
+        for instrument in instruments:
+            part = AudioSegment.from_wav("static/processed/" + str(music_id) + "_" + instrument + ".wav")
+            joinedParts = joinedParts.overlay(part)
+
+        joinedParts.export("static/processed/" + str(music_id) + "_" + str(njob) + ".mp3", format="mp3")
+            
+
+        
+
 
     def getInstrumentProgress(self, njob, music_id):
         instrumentProgress = {} # instrumento -> progresso (num partes já processadas/num partes)
@@ -210,8 +231,8 @@ class Server(threading.Thread):
         for instrument in self.processedParts[njob]:
             instrumentProgress[instrument] = len(self.processedParts[njob][instrument])/self.num_parts[music_id]
 
-    def musicReady(self):
-        return self.musicReady
+    def tracksReady(self):
+        return self.tracksReady
     
     def getJobList(self):
         return self.jobslist
@@ -226,9 +247,12 @@ class Server(threading.Thread):
         self.processedParts = {}
         self.controlReceived = {}
         self.num_parts = {}
-        self.nJob = 0
-        self.musicReady = False
+        self.nJob = -1
+        self.tracksReady = False
         self.musicData = []
+        self.controlWorkers = {}
+        self.ctrWork = -1  
+
 
         dir = "static/unprocessed"
         for f in os.listdir(dir):

@@ -54,3 +54,4 @@ combined_sounds.export("/output/path.wav", format="wav")
  FEITO - Fazer ficheiro bash pra lançar os workers
  FEITO - Testar separar em um número de partes baseado no tamanho da música ao invés de um valor fixo
  Consertar aparecer a música no frontend mesmo ela n estando lá
+ Colocar exclusão mutua no music ID
