@@ -32,6 +32,27 @@
         <input type="text" name="tracks" placeholder="Tracks by id (comma-separated)">
         <button type="submit">Process</button>
     </form>
+    <h2>Estado de processamento de uma música</h2>
+    <form id="getProgress" action="/music/{{music_id}}" method="get">
+        <input id="musicProgressInput" type="text" placeholder="Music ID">
+        <button id="musicProgressBtn" type="submit">Mostrar estado</button>
+    </form>
+    {% if progress %}
+        <h3>Music ID: {{ music_id }}</h3>
+            <ul>
+                <li>Progress: {{ progress.progress }} %</li>
+                <li>Tracks:  
+                    <ul>
+                        {% for inst in progress.instruments %}
+                        <li>{{ inst.name }} -> {{ inst.track }}</li>
+                        {% endfor %}
+                    </ul>
+
+                </li>
+                <li>Final: {{ progress.final }}</li>
+                <p></p>
+            </ul>
+    {% endif %}
     <h2>Jobs</h2>
     <div>
         <form action="/job" method="get">
@@ -44,40 +65,32 @@
         </form>  
         {% if jobs %}
         <ul> 
-            {% for job_id in jobs %}
-                <b>Job ID:</b> {{ job_id }}
-                {% for job in jobs[job_id] %}
-                <li style="padding-left: 20px;">
-                    Parte {{ job }} da musica  
+            {% for job in jobs %}
+                <b>Job ID:</b> {{ job.job_id }}
                     <ul style="padding-left: 20px;">
-                        <li>Size: {{ jobs[job_id][job][0] }}</li>
-                        <li>Time: {{ jobs[job_id][job][1] }}</li>
-                        <li>Music ID: {{ jobs[job_id][job][2]}}</li>
-                        <li>Track ID: {{ jobs[job_id][job][3]}}</li>
+                        <li>Size: {{ job.size }}</li>
+                        <li>Time: {{ job.time }}</li>
+                        <li>Music ID: {{ job.music_id}}</li>
+                        <li>Track ID: {{ job.track_id }}</li>
                     </ul>
-                </li>
-                {% endfor %}
             {% endfor %}
         </ul>
         {% endif %}
         {% if job %}
         <ul>
-            <b>Job Selecionado</b>
-            {% for j in job %}
-            <li style="padding-left: 20px;">
-                Parte ID: {{ j }}
-                <ul>
-                    <li>Size: {{ job[j][0] }}</li>
-                    <li>Time: {{ job[j][1] }}</li>
-                    <li>Music ID: {{ job[j][2] }}</li>
-                    <li>Track ID: {{ job[j][3] }}</li>
-                </ul>
+            <b>Job ID: {{ job.job_id }}</b>
+            <ul>
+                <li>Size: {{ job.size }}</li>
+                <li>Time: {{ job.time }}</li>
+                <li>Music ID: {{ job.music_id}}</li>
+                <li>Track ID: {{ job.track_id }}</li>
+            </ul>
             </li>
-            {% endfor %}
         </ul>
         {% endif %}
 
     </div>
+    <h2>Reset</h2>
     <form action="/reset" method="post" enctype="multipart/form-data">
         <button type="submit">Reset</button>
     </form>
@@ -99,6 +112,12 @@
         var jobId = document.getElementById("jobIdInput").value;
         var form = document.getElementById("getJob");
         form.action = "/job/" + jobId;
+    });
+
+    document.getElementById("musicProgressBtn").addEventListener("click", function(event) {
+        var music_id = document.getElementById("musicProgressInput").value;
+        var form = document.getElementById("getProgress");
+        form.action = "/music/" + music_id;
     });
 
 </script>

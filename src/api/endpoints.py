@@ -5,9 +5,10 @@ import shutil, os, signal, sys
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse
-from schemas import Music, Progress, Track, Job
+from schemas import Music, Progress, Track, Job, Instrument
 from server import Server
 import uvicorn, threading
+
 
 
 app = FastAPI()
@@ -18,6 +19,8 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 
 
 idx = -1
+idx_lock = threading.Lock()
+
 defaultTracks = [
     Track(name = "drums", track_id = 1),
     Track(name = "bass", track_id = 2),
@@ -32,19 +35,29 @@ tracksDict = {
     4: "other"
 }
 
+progressTotal = {}
+
 # Music
 @app.get("/music")
 async def listAll() -> List[Music]:
     return server.listAll()
 
 
-@app.get("/music/{music_id}")
-async def getProgress(music_id: int) -> Progress:
-    progress = server.getInstrumentProgress(music_id)
-    
-    for instrument in progress[music_id]:
-        if progress[instrument] == 1:   # 100%
-            pass
+@app.get("/music/{music_id}", response_class=HTMLResponse)
+async def getProgress(request: Request ,music_id: int) -> List[Progress]: 
+    progress = server.getProgress(music_id)
+
+    instruments = []
+        
+    for i in range(len(progress[1])):
+        inst = Instrument(name=progress[1][i][0], track=progress[1][i][1])
+        instruments.append(inst)
+
+    progressTotal = Progress(progress=int(progress[0]), instruments=instruments, final=str(progress[2]))
+
+    music_list = await listAll()
+    return templates.TemplateResponse("index.html", {"request": request,"music_list": music_list, "progress": progressTotal, "music_id": music_id})
+
 
 
 
@@ -52,7 +65,11 @@ async def getProgress(music_id: int) -> Progress:
 async def submit(request: Request, mp3file: UploadFile = File(...)) -> Music:
     # adiciona nova música
     global idx
-    idx += 1
+    global idx_lock
+
+    with idx_lock:
+        idx += 1
+        current_idx = idx
 
     metadata = mediainfo_json(mp3file.file)
     try:
@@ -64,12 +81,12 @@ async def submit(request: Request, mp3file: UploadFile = File(...)) -> Music:
     except:
         band = ""
 
-    with open("static/unprocessed/{:0>3d}_{}.mp3".format(idx,title),"wb") as buffer:
+    with open("static/unprocessed/{:0>3d}_{}.mp3".format(current_idx,title),"wb") as buffer:
         mp3file.file.seek(0)
         shutil.copyfileobj(mp3file.file,buffer)
     mp3file.file.close()
 
-    music = Music(music_id=idx, name=title, band=band, tracks=defaultTracks)
+    music = Music(music_id=current_idx, name=title, band=band, tracks=defaultTracks)
 
     server.addMusic(music)
 
@@ -91,17 +108,23 @@ async def process(request: Request, music_id: int, tracks: str = Form(...)):
 @app.get("/job", response_class=HTMLResponse)
 async def listJobs(request: Request) -> List[Job]:
     jobs = server.getJobList()
-    music_list = await listAll()
 
-    return templates.TemplateResponse("index.html", {"request": request, "music_list": music_list, "jobs": jobs})
+    jobs_list = []
+    for job in jobs:
+        jobs_list.append(Job(job_id=job, size=jobs[job][0], time=jobs[job][1], music_id=jobs[job][2], track_id=jobs[job][3]))
+
+    music_list = await listAll()
+    return templates.TemplateResponse("index.html", {"request": request, "music_list": music_list, "jobs": jobs_list})
 
 
 @app.get("/job/{job_id}", response_class=HTMLResponse)
 async def getJob(request: Request, job_id: int) -> Job:
     job = server.getJobList()[job_id]
-    music_list = await listAll()
 
-    return templates.TemplateResponse("index.html", {"request": request, "music_list": music_list, "job": job})
+    j = Job(job_id=job_id, size=job[0], time=job[1], music_id=job[2], track_id=job[3])
+
+    music_list = await listAll()
+    return templates.TemplateResponse("index.html", {"request": request, "music_list": music_list, "job": j})
 
 
 @app.post("/reset", response_class=HTMLResponse)

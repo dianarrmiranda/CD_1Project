@@ -15,7 +15,7 @@ import torch
 class Worker:
 
     def __init__(self):
-        self.connection = pika.BlockingConnection(pika.ConnectionParameters('192.168.132.198'))
+        self.connection = pika.BlockingConnection(pika.ConnectionParameters('localhost'))
         self.channel = self.connection.channel()
         self.channel.queue_declare(queue="music_parts")
         self.channel.queue_declare(queue="processed_parts")
@@ -62,7 +62,7 @@ class Worker:
         part_data = {
                 'music_id': music_id,
                 'part_index': part_index,
-                'instrument': track[:-6] if int(part_index.split(".")[1]) > 9 else track[:-5],
+                'instrument': track[:-6] if part_index > 9 else track[:-5],
                 'part_audio': output.getvalue().decode('latin1')  # Converte os bytes em string
             }
         
@@ -95,31 +95,29 @@ class Worker:
         part_index = part_data['part_index']
         part_audio = part_data['part_audio'].encode('latin1')  # Converte a string em bytes
         tracks_names = part_data['instruments']
-        i = part_index.split(".")
-        index = int(i[1])
         # Carregar a parte do áudio
         audio_part = AudioSegment.from_file(BytesIO(part_audio), format='mp3')
 
-        print(f' [x] Received part {index} of music {music_id}')
+        print(f' [x] Received part {part_index} of music {music_id}')
 
         ch.basic_ack(delivery_tag=method.delivery_tag)
 
 
-        self.process_audio(audio_part, music_id, index)
+        self.process_audio(audio_part, music_id, part_index)
 
         # Enviar partes processadas apenas dos instrumentos solicitados
-        if index < 10:
+        if part_index < 10:
             for track in os.listdir("../tracks/" + str(music_id)):
-                if track[:-5] in tracks_names and int(track[-5]) == index:
+                if track[:-5] in tracks_names and int(track[-5]) == part_index:
                     self.send_processed_music_part(track, part_index, music_id)
-                if (os.path.exists("../tracks/" + str(music_id) + "/" + (track[:-5] + str(index)) + ".wav")) and int(track[-5]) == index:
-                    os.remove("../tracks/" + str(music_id) + "/" + (track[:-5] + str(index)) + ".wav")
+                if (os.path.exists("../tracks/" + str(music_id) + "/" + (track[:-5] + str(part_index)) + ".wav")) and int(track[-5]) == part_index:
+                    os.remove("../tracks/" + str(music_id) + "/" + (track[:-5] + str(part_index)) + ".wav")
         else:
             for track in os.listdir("../tracks/" + str(music_id)):
-                if track[:-6] in tracks_names and int(track[-6:-4]) == index:
+                if track[:-6] in tracks_names and int(track[-6:-4]) == part_index:
                     self.send_processed_music_part(track, part_index, music_id)
-                if (os.path.exists("../tracks/" + str(music_id) + "/" + (track[:-6] + str(index)) + ".wav")) and int(track[-6:-4]) == index:
-                    os.remove("../tracks/" + str(music_id) + "/" + (track[:-6] + str(index)) + ".wav")
+                if (os.path.exists("../tracks/" + str(music_id) + "/" + (track[:-6] + str(part_index)) + ".wav")) and int(track[-6:-4]) == part_index:
+                    os.remove("../tracks/" + str(music_id) + "/" + (track[:-6] + str(part_index)) + ".wav")
                     
         self.current_part_data = None
 
