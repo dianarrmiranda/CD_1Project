@@ -2,6 +2,7 @@
 *.mp3
 *.wav
 tracks/
+pretrained_models
 
 
 # Byte-compiled / optimized / DLL files

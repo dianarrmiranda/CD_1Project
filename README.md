@@ -35,7 +35,6 @@ It is important to install the requirements following the previous instructions.
 By default, PyTorch will install the CUDA version of the library (over 4G simple from the virtual environment).
 As such, the current instructions force the installation of the CPU version of PyTorch and then installs Demucs.
 
-
 ## Usage
 
 The sample main code only requires two parameters:
@@ -53,10 +52,11 @@ To run test the sample code simple run:
 python main.py -i test.mp3
 ```
 
-
 ## Authors
 
 * **Mário Antunes** - [mariolpantunes](https://github.com/mariolpantunes)
+* **Diogo Gomes** - [dgomes](https://github.com/dgomes)
+* **Nuno Lau** - [nunolau](https://github.com/nunolau)
 
 ## License
 

@@ -18,7 +18,6 @@ from demucs.audio import AudioFile, save_audio
 logging.basicConfig(level=logging.INFO, format='%(message)s')
 logger = logging.getLogger(__name__)
 
-
 def main(args):
     # get the model
     model = get_model(name='htdemucs')
