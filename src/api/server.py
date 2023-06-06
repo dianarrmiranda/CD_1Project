@@ -24,7 +24,7 @@ class Server(threading.Thread):
         self.processedParts = {} # {jobID: {instrumento: {part_index: audio_part}}}
 
         # Rabbit MQ - Enviar não processadas
-        self.connection = pika.BlockingConnection(pika.ConnectionParameters('localhost', heartbeat=60, blocked_connection_timeout=10))
+        self.connection = pika.BlockingConnection(pika.ConnectionParameters('192.168.132.198', heartbeat=60, blocked_connection_timeout=10))
         self.channel = self.connection.channel()
         self.channel.queue_declare(queue="music_parts")
 
@@ -107,7 +107,7 @@ class Server(threading.Thread):
         duration = len(audio)  # Duração total da música em milissegundos
         part_duration = 10 * 1000  # Duração desejada de cada parte em milissegundos
         total_duration_sec = duration / 1000  # Converter a duração total da música para segundos
-        self.timeout = 2 * total_duration_sec  # Ajustar o valor do timeout com base na duração da música
+        #self.timeout = 5 * total_duration_sec  # Ajustar o valor do timeout com base na duração da música
 
         self.num_parts[music_id] = ceil(duration / part_duration)  # Calcular o número de partes arredondando para cima
 
@@ -139,7 +139,7 @@ class Server(threading.Thread):
         
         self.start_timeout(self.nJob, music_id)
 
-
+    
     def start_timeout(self, njob, music_id):
         timer = threading.Timer(self.timeout, lambda: self.check_and_resend_missing_parts(njob, music_id))
         timer.start()
@@ -167,9 +167,9 @@ class Server(threading.Thread):
         njob = int(part_index.split(".")[0])
         index = int(part_index.split(".")[1])
 
-        if self.ctrWork < njob:
-            self.start_timeout(njob, music_id)
-            self.ctrWork = njob
+        #if self.ctrWork < njob:
+        #    self.start_timeout(njob, music_id)
+        #    self.ctrWork = njob
 
         self.time[njob][index] = time.time() - self.startTime[njob][index]
 

@@ -15,7 +15,7 @@ import torch
 class Worker:
 
     def __init__(self):
-        self.connection = pika.BlockingConnection(pika.ConnectionParameters('localhost'))
+        self.connection = pika.BlockingConnection(pika.ConnectionParameters('192.168.132.198'))
         self.channel = self.connection.channel()
         self.channel.queue_declare(queue="music_parts")
         self.channel.queue_declare(queue="processed_parts")
