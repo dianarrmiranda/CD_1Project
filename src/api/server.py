@@ -24,7 +24,7 @@ class Server(threading.Thread):
         self.processedParts = {} # {jobID: {instrumento: {part_index: audio_part}}}
 
         # Rabbit MQ - Enviar não processadas
-        self.connection = pika.BlockingConnection(pika.ConnectionParameters('192.168.132.198', heartbeat=60, blocked_connection_timeout=10))
+        self.connection = pika.BlockingConnection(pika.ConnectionParameters('localhost', heartbeat=60, blocked_connection_timeout=10))
         self.channel = self.connection.channel()
         self.channel.queue_declare(queue="music_parts")
 
@@ -137,7 +137,7 @@ class Server(threading.Thread):
             self.jobslist[self.nJob][i] = []
             self.connection.add_callback_threadsafe(lambda: self.send_music_part(part_data))
         
-        self.start_timeout(self.nJob, music_id)
+        #self.start_timeout(self.nJob, music_id)
 
     
     def start_timeout(self, njob, music_id):
