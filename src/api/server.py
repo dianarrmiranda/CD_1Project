@@ -22,7 +22,6 @@ class Server(threading.Thread):
         self.musicData = []
         # Partes processadas
         self.processedParts = {} # {jobID: {instrumento: {part_index: audio_part}}}
-        self.tracksReady = {} # track -> True/False
 
         # Rabbit MQ - Enviar não processadas
         self.connection = pika.BlockingConnection(pika.ConnectionParameters('localhost', heartbeat=60, blocked_connection_timeout=10))
@@ -41,7 +40,7 @@ class Server(threading.Thread):
 
         self.size = {} #jobID - {part_index: size}
 
-        self.jobslist = {} #jobID -> {part_index -> [size, time, music_id, track_id]}
+        self.jobslist = {} #jobID -> {part_index -> [size, time, music_id, track_id[tracks] ]}
         self.nJob = -1
         self.controlReceived = {} #jobID -> [part_index]
 
@@ -98,6 +97,7 @@ class Server(threading.Thread):
         self.size[self.nJob] = {}
         self.size[self.nJob] = {}
         self.controlWorkers[self.nJob] = {}
+        self.countParts[self.nJob] = 0
         
 
         # Carregar o arquivo de áudio
@@ -208,23 +208,22 @@ class Server(threading.Thread):
             
         joinedParts.export("static/processed/" + str(music_id) + "_" + instrument + ".wav", format="wav")
 
-        self.tracksReady = True
         self.countParts[njob] += 1
 
-
+        if(self.countParts[njob] == len(self.jobslist[njob][0][-1])):
+            self.joinInstruments(music_id, njob)
 
 
     def joinInstruments(self, music_id, njob):
         print(f' [*] Joining instruments of music {music_id} from job {njob}')
 
         instruments = self.jobslist[njob][0][-1]
-        joinedParts = AudioSegment.empty()
+        joinedParts = AudioSegment.from_wav("static/processed/" + str(music_id) + "_" + self.jobslist[njob][0][-1][0] + ".wav")
 
-        for instrument in instruments:
-            part = AudioSegment.from_wav("static/processed/" + str(music_id) + "_" + instrument + ".wav")
-            joinedParts = joinedParts.overlay(part)
+        for i in range(1,len(instruments)):
+            joinedParts = joinedParts.overlay(AudioSegment.from_wav("static/processed/" + str(music_id) + "_" + instruments[i] + ".wav"))
 
-        joinedParts.export("static/processed/" + str(music_id) + "_" + str(njob) + ".mp3", format="mp3")
+        joinedParts.export("static/processed/" + str(music_id) + "_" + str(njob) + ".wav", format="wav")
             
 
     def getInstrumentProgress(self, njob, music_id):
@@ -233,11 +232,10 @@ class Server(threading.Thread):
         for instrument in self.processedParts[njob]:
             instrumentProgress[instrument] = len(self.processedParts[njob][instrument])/self.num_parts[music_id]
 
-    def tracksReady(self):
-        return self.tracksReady
-    
+
     def getJobList(self):
         return self.jobslist
+
 
     def reset(self):
 
@@ -250,10 +248,10 @@ class Server(threading.Thread):
         self.controlReceived = {}
         self.num_parts = {}
         self.nJob = -1
-        self.tracksReady = False
         self.musicData = []
         self.controlWorkers = {}
-        self.ctrWork = -1  
+        self.ctrWork = -1
+        self.countParts = {}  
 
 
         dir = "static/unprocessed"
