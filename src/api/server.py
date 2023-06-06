@@ -48,6 +48,8 @@ class Server(threading.Thread):
         self.controlWorkers = {} #jobID -> {part_index -> partData} 
         self.ctrWork = -1
 
+        self.countParts = {} #jobID -> {count}
+
     def run(self):
         while self.isRunning:
             self.connection.process_data_events(time_limit=1)
@@ -96,6 +98,7 @@ class Server(threading.Thread):
         self.size[self.nJob] = {}
         self.size[self.nJob] = {}
         self.controlWorkers[self.nJob] = {}
+        
 
         # Carregar o arquivo de áudio
         audio = AudioSegment.from_file('static/unprocessed/00'+ str(music_id) + '_' + music.name + '.mp3', format='mp3')
@@ -206,7 +209,9 @@ class Server(threading.Thread):
         joinedParts.export("static/processed/" + str(music_id) + "_" + instrument + ".wav", format="wav")
 
         self.tracksReady = True
-        
+        self.countParts[njob] += 1
+
+
 
 
     def joinInstruments(self, music_id, njob):
@@ -221,9 +226,6 @@ class Server(threading.Thread):
 
         joinedParts.export("static/processed/" + str(music_id) + "_" + str(njob) + ".mp3", format="mp3")
             
-
-        
-
 
     def getInstrumentProgress(self, njob, music_id):
         instrumentProgress = {} # instrumento -> progresso (num partes já processadas/num partes)
