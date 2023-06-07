@@ -110,7 +110,7 @@ class Server(threading.Thread):
         self.nJob += 1
         self.jobslist[self.nJob] = {} 
         self.tracks[music_id] = tracks_names.copy()
-        self.controlReceived[music_id] = {}
+        self.controlReceived[music_id] = []
         self.countParts[music_id] = 0
         self.jobProgress[music_id] = 0
         music = self.getMusic(music_id)
