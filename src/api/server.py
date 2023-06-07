@@ -1,3 +1,4 @@
+import functools
 from math import ceil
 import os
 import time
@@ -8,6 +9,7 @@ from pydub import AudioSegment
 import json
 from io import BytesIO
 import threading
+from pika import heartbeat
 
 class Server(threading.Thread):
 
@@ -15,7 +17,7 @@ class Server(threading.Thread):
 
         # Threading
         super().__init__()
-        self.deamon = True
+        self.daemon = True
         self.isRunning = True
 
         # Músicas a serem processadas
@@ -43,11 +45,8 @@ class Server(threading.Thread):
 
         self.jobslist = {} #nJob -> {part_index -> [size, time, music_id, track_id[tracks] ]}
         self.nJob = -1
-        self.countParts = {} #musicId -> {count}
 
         self.controlReceived = {} #musicId -> [part_index]
-        self.controlWorkers = {} #musicId -> {part_index -> partData} 
-        self.ctrWork = 0
 
         self.progress = {} #musicID -> [progress, [instruments], final]
         self.jobProgress = {} #musicId -> numero de partes recebidas
@@ -90,7 +89,6 @@ class Server(threading.Thread):
         self.startTime[music.music_id] = {}
         self.time[music.music_id] = {}
         self.size[music.music_id] = {}
-        self.controlWorkers[music.music_id] = {}
         self.progress[music.music_id] = [0, [], '']
         self.instRecevided[music.music_id] = []
         
@@ -111,7 +109,6 @@ class Server(threading.Thread):
         self.jobslist[self.nJob] = {} 
         self.tracks[music_id] = tracks_names.copy()
         self.controlReceived[music_id] = []
-        self.countParts[music_id] = 0
         self.jobProgress[music_id] = 0
         music = self.getMusic(music_id)
 
@@ -119,9 +116,6 @@ class Server(threading.Thread):
         audio = AudioSegment.from_file('static/unprocessed/00'+ str(music_id) + '_' + music.name + '.mp3', format='mp3')
         duration = len(audio)  # Duração total da música em milissegundos
         part_duration = 10 * 1000  # Duração desejada de cada parte em milissegundos
-        total_duration_sec = duration / 1000  # Converter a duração total da música para segundos
-
-        self.timeout = 2 * total_duration_sec  # Ajustar o valor do timeout com base na duração da música
         self.num_parts[music_id] = ceil(duration / part_duration)  # Calcular o número de partes arredondando para cima
 
         # Dividir a música em partes
@@ -134,7 +128,6 @@ class Server(threading.Thread):
                 self.processedParts[music_id][track] = {}  # Cria um dicionário vazio para a chave `track` dentro de `music_id`
             else:
                 print(' [*] Track ' + track + ' already processed')
-                self.countParts[music_id] += 1
                 self.jobProgress[music_id] += 1
                 tracks_names.remove(track)  # Remove o instrumento da lista de instrumentos a serem processados
 
@@ -154,32 +147,12 @@ class Server(threading.Thread):
                     'part_audio': output.getvalue().decode('latin1')  # Converte os bytes em string
                 }
 
-                self.controlWorkers[music_id][i] = part_data
-
                 self.startTime[music_id][i] = time.time()
                 self.size[music_id][i] = len(part_data['part_audio'])
 
                 self.connection.add_callback_threadsafe(lambda: self.send_music_part(part_data))
         else:
             self.joinInstruments(music_id)
-        
-    def start_timeout(self, music_id):
-        timer = threading.Timer(self.timeout, lambda: self.check_and_resend_missing_parts(music_id))
-        timer.start()
-
-    def check_and_resend_missing_parts(self, music_id):
-        missing_parts = []
-
-        for part_index in range(self.num_parts[music_id]):
-            if part_index not in self.controlReceived[music_id]:
-                missing_parts.append(part_index)
-
-        for missing_part in missing_parts:
-            part_data = self.controlWorkers[music_id][missing_part]
-            self.startTime[music_id][missing_part] = time.time()
-            self.size[music_id][missing_part] = len(part_data['part_audio'])
-            self.connection.add_callback_threadsafe(lambda: self.send_music_part(part_data))
-
 
     def receive_music_parts(self, ch, method, properties, body):        
         part_data = json.loads(body)
@@ -207,10 +180,6 @@ class Server(threading.Thread):
             inst.append(instrument)
             self.jobslist[self.nJob][part_index] = [self.size[music_id][part_index], self.time[music_id][part_index], music_id, inst]
         
-        if self.ctrWork < self.nJob:
-           self.start_timeout(music_id)
-           self.ctrWork = self.nJob
-        
         # Carregar a parte do áudio
         audio_part = AudioSegment.from_file(BytesIO(part_audio), format='wav')
 
@@ -223,7 +192,6 @@ class Server(threading.Thread):
         if len(self.processedParts[music_id][instrument]) == self.num_parts[music_id]:
              self.join_music_parts(music_id, instrument)
 
-
     def join_music_parts(self, music_id, instrument):
         print(f' [*] Joining parts of music {music_id} and of instrument {instrument}')
 
@@ -234,14 +202,11 @@ class Server(threading.Thread):
             
         joinedParts.export("static/processed/" + str(music_id) + "_" + instrument + ".wav", format="wav")
 
-        self.countParts[music_id] += 1
-
         self.progress[music_id][1].append([instrument, '/static/processed/{}_{}.wav'.format(music_id, instrument)])
 
         self.instRecevided[music_id].append(instrument)
 
-
-        if(self.countParts[music_id] == len(self.tracks[music_id])):
+        if(self.jobProgress[music_id]/self.num_parts[music_id]) == len(self.tracks[music_id]):
             self.joinInstruments(music_id)
 
 
@@ -287,10 +252,7 @@ class Server(threading.Thread):
         self.num_parts = {}
         self.nJob = -1
         self.musicData = []
-        self.controlWorkers = {}
         self.ctrWork = -1
-        self.countParts = {}  
-
 
         dir = "static/unprocessed"
         for f in os.listdir(dir):
