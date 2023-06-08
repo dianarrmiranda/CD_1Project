@@ -23,9 +23,8 @@ class Worker:
         self.channel.basic_qos(prefetch_count=1)
         self.channel.basic_consume(queue="music_parts", on_message_callback=self.process_music_part)
         torch.set_num_threads(1)
-
-        self.current_part_data = None
         
+        self.current_message_info = None
     
     def start(self):
         print(' [*] Waiting for music parts. To exit press CTRL+C')
@@ -33,23 +32,17 @@ class Worker:
 
     def run_forever(self):
         while True:
-            if not self.current_part_data:
-                try:
-                    self.start()
-                except (Exception, KeyboardInterrupt) as e:
-                    print("Worker encontrou um erro:", e)
-                    print("Reiniciando o worker...")
-                    time.sleep(1)
-                    traceback.print_exc()
-                    # Criar um novo canal
-                    self.channel = self.connection.channel()
-                    self.channel.queue_declare(queue="music_parts")
-                    self.channel.queue_declare(queue="processed_parts")
-                    self.channel.basic_qos(prefetch_count=1)
-                    self.channel.basic_consume(queue="music_parts", on_message_callback=self.process_music_part)
-            else:
-                self.process_music_part(self.current_part_data[0], self.current_part_data[1], self.current_part_data[2], self.current_part_data[3])
-                self.current_part_data = None
+            try:
+                 self.start()
+            except (Exception, KeyboardInterrupt) as e:
+                if self.current_message_info:
+                    ch = self.current_message_info['ch']
+                    method = self.current_message_info['method']
+                    ch.basic_nack(delivery_tag=method.delivery_tag, requeue=True)
+                print("Worker encontrou um erro:", e)
+                print("Reiniciando o worker...")
+                time.sleep(1)
+                traceback.print_exc()
 
     def signal_handler(self, sig):
         print('\n [*] Worker done!')
@@ -100,27 +93,32 @@ class Worker:
 
         print(f' [x] Received part {part_index} of music {music_id}')
 
-        ch.basic_ack(delivery_tag=method.delivery_tag)
+        self.current_message_info = {'ch': ch, 'method': method}
 
+        try:
+            self.process_audio(audio_part, music_id, part_index)
 
-        self.process_audio(audio_part, music_id, part_index)
+            # Enviar partes processadas apenas dos instrumentos solicitados
+            if part_index < 10:
+                for track in os.listdir("../tracks/" + str(music_id)):
+                    if track[:-5] in tracks_names and int(track[-5]) == part_index:
+                        self.send_processed_music_part(track, part_index, music_id)
+                    if (os.path.exists("../tracks/" + str(music_id) + "/" + (track[:-5] + str(part_index)) + ".wav")) and int(track[-5]) == part_index:
+                        os.remove("../tracks/" + str(music_id) + "/" + (track[:-5] + str(part_index)) + ".wav")
+            else:
+                for track in os.listdir("../tracks/" + str(music_id)):
+                    if track[:-6] in tracks_names and int(track[-6:-4]) == part_index:
+                        self.send_processed_music_part(track, part_index, music_id)
+                    if (os.path.exists("../tracks/" + str(music_id) + "/" + (track[:-6] + str(part_index)) + ".wav")) and int(track[-6:-4]) == part_index:
+                        os.remove("../tracks/" + str(music_id) + "/" + (track[:-6] + str(part_index)) + ".wav")
 
-        # Enviar partes processadas apenas dos instrumentos solicitados
-        if part_index < 10:
-            for track in os.listdir("../tracks/" + str(music_id)):
-                if track[:-5] in tracks_names and int(track[-5]) == part_index:
-                    self.send_processed_music_part(track, part_index, music_id)
-                if (os.path.exists("../tracks/" + str(music_id) + "/" + (track[:-5] + str(part_index)) + ".wav")) and int(track[-5]) == part_index:
-                    os.remove("../tracks/" + str(music_id) + "/" + (track[:-5] + str(part_index)) + ".wav")
-        else:
-            for track in os.listdir("../tracks/" + str(music_id)):
-                if track[:-6] in tracks_names and int(track[-6:-4]) == part_index:
-                    self.send_processed_music_part(track, part_index, music_id)
-                if (os.path.exists("../tracks/" + str(music_id) + "/" + (track[:-6] + str(part_index)) + ".wav")) and int(track[-6:-4]) == part_index:
-                    os.remove("../tracks/" + str(music_id) + "/" + (track[:-6] + str(part_index)) + ".wav")
-                    
-        self.current_part_data = None
-
+            # Enviar confirmação de recebimento (basic_ack) após a conclusão bem-sucedida do processamento
+            ch.basic_ack(delivery_tag=method.delivery_tag)
+            self.current_message_info = None
+        except Exception as e:
+            print(f"Erro ao processar a parte {part_index} da música {music_id}: {e}")
+            # Retornar a parte da música à fila para ser processada novamente
+            ch.basic_nack(delivery_tag=method.delivery_tag, requeue=True)
 
 
 worker = Worker()

@@ -44,12 +44,12 @@
                 <li>Tracks:  
                     <ul>
                         {% for inst in progress.instruments %}
-                        <li>{{ inst.name }} -> {{ inst.track }}</li>
+                        <li>{{ inst.name }} -> <a href="{{ inst.track }}">{{ inst.track }}</a></li>
                         {% endfor %}
                     </ul>
 
                 </li>
-                <li>Final: {{ progress.final }}</li>
+                <li>Final: <a href="{{ progress.final }}">{{ progress.final }}</a></li></li>
                 <p></p>
             </ul>
     {% endif %}
