@@ -148,7 +148,7 @@ async def reset(request: Request):
     global idx
     idx = -1
     music_list = await listAll()
-
+    
     return templates.TemplateResponse("index.html", {"request": request, "music_list": music_list})
 
 

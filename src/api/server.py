@@ -47,17 +47,21 @@ class Server(threading.Thread):
 
     def stop(self):
         print(' [*] Stopping server...')
+
         self.isRunning = False
         self.connection.process_data_events(time_limit=1)
         self.clear_directory("static/unprocessed")
         self.clear_directory("static/processed")
+
         if self.connection.is_open:
             self.connection.close()
         print(' [*] Server stopped')
 
+
     def clear_directory(self, directory):
         for f in os.listdir(directory):
             os.remove(os.path.join(directory, f))
+
 
     def send_music_part(self, part_data):
         self.channel.basic_publish(
@@ -65,7 +69,8 @@ class Server(threading.Thread):
             routing_key='music_parts',
             body=json.dumps(part_data)
         )
-    
+
+
     def addMusic(self, music):
         self.musicData.append(music)
         self.jobslist[music.music_id] = {}
@@ -73,16 +78,15 @@ class Server(threading.Thread):
         self.time[music.music_id] = {}
         self.size[music.music_id] = {}
         self.progress[music.music_id] = [0, [], '']
-        
+
+
     def getMusic(self, music_id):
         return self.musicData[music_id]
-    
+
+
     def listAll(self):
         return self.musicData
     
-    def close(self):
-        self.connection.close()
-
 
     def split_music(self, music_id: int, tracks_names: list):
         self.nJob += 1
@@ -138,6 +142,9 @@ class Server(threading.Thread):
         part_index = part_data['part_index']
         part_audio = part_data['part_audio'].encode('latin1')  # Converte a string em bytes
         instrument = part_data['instrument']
+
+        if(self.jobProgress == {}):
+            return
 
         if(self.jobProgress[music_id] < self.num_parts[music_id]*len(self.tracks[music_id])):
             self.jobProgress[music_id] +=1 
@@ -224,7 +231,20 @@ class Server(threading.Thread):
         self.jobProgress = {}
         self.progress = {}
 
-        self.clear_directory('static/processed')
-        self.clear_directory('static/unprocessed')
+        self.isRunning = False
+        self.connection.process_data_events(time_limit=1)
+        self.clear_directory("static/unprocessed")
+        self.clear_directory("static/processed")
+        self.channel.queue_delete(queue="music_parts")
+        self.channel.queue_delete(queue="processed_parts")
+
+        print("[*] Resetting...")
+        time.sleep(40)
+
+        self.channel.queue_declare(queue="music_parts")
+        self.channel.queue_declare(queue="processed_parts")
+        self.channel.basic_qos(prefetch_count=1)
+        self.channel.basic_consume(queue="processed_parts", on_message_callback=self.receive_music_parts)
+        self.isRunning = True
 
         print(' [*] Reseted all data')

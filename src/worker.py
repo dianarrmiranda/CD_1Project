@@ -1,4 +1,3 @@
-import pickle
 import subprocess
 import time
 import traceback
@@ -27,13 +26,13 @@ class Worker:
         self.current_message_info = None
     
     def start(self):
-        print(' [*] Waiting for music parts. To exit press CTRL+C')
+        print(' [*] Waiting for music parts.')
         self.channel.start_consuming()
 
-    def run_forever(self):
+        """ def run_forever(self):
         while True:
             try:
-                 self.start()
+                self.start()
             except (Exception, KeyboardInterrupt) as e:
                 if self.current_message_info:
                     ch = self.current_message_info['ch']
@@ -42,7 +41,7 @@ class Worker:
                 print("Worker encontrou um erro:", e)
                 print("Reiniciando o worker...")
                 time.sleep(1)
-                traceback.print_exc()
+                traceback.print_exc() """
 
     def signal_handler(self, sig):
         print('\n [*] Worker done!')
@@ -122,4 +121,4 @@ class Worker:
 
 
 worker = Worker()
-worker.run_forever()  # Iniciar o processamento das partes da música
+worker.start()  # Iniciar o processamento das partes da música
