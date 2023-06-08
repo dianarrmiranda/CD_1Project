@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Form, UploadFile, File, Request
+from fastapi import FastAPI, Form, UploadFile, File, Request, HTTPException
 from typing import List
 from pydub.utils import mediainfo_json
 import shutil, os, signal, sys
@@ -45,7 +45,11 @@ async def listAll() -> List[Music]:
 
 @app.get("/music/{music_id}", response_class=HTMLResponse)
 async def getProgress(request: Request ,music_id: int) -> List[Progress]: 
-    progress = server.getProgress(music_id)
+
+    try:
+        progress = server.getProgress(music_id)
+    except Exception:
+        raise HTTPException(status_code=404, detail="Music not found")
 
     instruments = []
         
@@ -57,8 +61,6 @@ async def getProgress(request: Request ,music_id: int) -> List[Progress]:
 
     music_list = await listAll()
     return templates.TemplateResponse("index.html", {"request": request,"music_list": music_list, "progress": progressTotal, "music_id": music_id})
-
-
 
 
 @app.post("/music")
@@ -81,10 +83,13 @@ async def submit(request: Request, mp3file: UploadFile = File(...)) -> Music:
     except:
         band = ""
 
-    with open("static/unprocessed/{:0>3d}_{}.mp3".format(current_idx,title),"wb") as buffer:
-        mp3file.file.seek(0)
-        shutil.copyfileobj(mp3file.file,buffer)
-    mp3file.file.close()
+    try:
+        with open("static/unprocessed/{:0>3d}_{}.mp3".format(current_idx,title),"wb") as buffer:
+            mp3file.file.seek(0)
+            shutil.copyfileobj(mp3file.file,buffer)
+        mp3file.file.close()
+    except Exception:
+        raise HTTPException(status_code=405, detail="Invalid input")
 
     music = Music(music_id=current_idx, name=title, band=band, tracks=defaultTracks)
 
@@ -96,7 +101,17 @@ async def submit(request: Request, mp3file: UploadFile = File(...)) -> Music:
 
 @app.post("/music/{music_id}", response_class=HTMLResponse)
 async def process(request: Request, music_id: int, tracks: str = Form(...)):
+
+    with idx_lock:
+        if music_id > idx or music_id < 0:
+            raise HTTPException(status_code=404, detail="Music not found")
+        
     tracks_ids = [track.strip() for track in tracks.split(",")]
+
+    for track in tracks_ids:
+        if int(track) not in tracksDict.keys():
+            raise HTTPException(status_code=404, detail="Track not found")
+        
     tracks_names = [tracksDict[int(id)] for id in tracks_ids]
 
     server.split_music(music_id, tracks_names)
