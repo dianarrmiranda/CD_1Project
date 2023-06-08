@@ -14,9 +14,11 @@ import subprocess
 from demucs.apply import apply_model
 from demucs.pretrained import get_model
 from demucs.audio import AudioFile, save_audio
+import torch
 
 logging.basicConfig(level=logging.INFO, format='%(message)s')
 logger = logging.getLogger(__name__)
+torch.set_num_threads(1)
 
 def main(args):
     # get the model

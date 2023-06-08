@@ -5,8 +5,7 @@ import pika
 import json
 from pydub import AudioSegment
 from io import BytesIO
-import demucs.separate
-import os, sys, signal
+import os, sys
 import tempfile
 import torch
 
@@ -51,13 +50,21 @@ class Worker:
         audio = AudioSegment.from_file("../tracks/" + str(music_id) + "/" + track, format='wav')
         output = BytesIO()
         audio.export(output, format='wav')
+
+        instrument = ''
+        if part_index > 9 and part_index < 100:
+            instrument = track[:-6]
+        elif part_index > 99:
+            instrument = track[:-7]
+        else:
+            instrument = track[:-5]
         part_data = {
-                'music_id': music_id,
-                'part_index': part_index,
-                'instrument': track[:-6] if part_index > 9 else track[:-5],
-                'part_audio': output.getvalue().decode('latin1')  # Converte os bytes em string
-            }
-        
+            'music_id': music_id,
+            'part_index': part_index,
+            'instrument': instrument,
+            'part_audio': output.getvalue().decode('latin1')
+        }
+
         self.channel.basic_publish(
             exchange='',
             routing_key='processed_parts',
@@ -75,7 +82,7 @@ class Worker:
             audio_part.export(temp_audio_file.name, format='mp3')
             temp_audio_path = temp_audio_file.name
         # Executar o arquivo main.py
-        subprocess.run(['python3', main_script, '-i', temp_audio_path, '-o', music_folder, '-p' , str(index)])
+        subprocess.run(['python3', main_script, '-i', temp_audio_path, '-o', music_folder, '-p', str(index)])
         # Remover o arquivo temporário
         os.remove(temp_audio_path)
 
@@ -104,12 +111,18 @@ class Worker:
                         self.send_processed_music_part(track, part_index, music_id)
                     if (os.path.exists("../tracks/" + str(music_id) + "/" + (track[:-5] + str(part_index)) + ".wav")) and int(track[-5]) == part_index:
                         os.remove("../tracks/" + str(music_id) + "/" + (track[:-5] + str(part_index)) + ".wav")
-            else:
+            elif part_index < 100:
                 for track in os.listdir("../tracks/" + str(music_id)):
                     if track[:-6] in tracks_names and int(track[-6:-4]) == part_index:
                         self.send_processed_music_part(track, part_index, music_id)
                     if (os.path.exists("../tracks/" + str(music_id) + "/" + (track[:-6] + str(part_index)) + ".wav")) and int(track[-6:-4]) == part_index:
                         os.remove("../tracks/" + str(music_id) + "/" + (track[:-6] + str(part_index)) + ".wav")
+            else:
+                for track in os.listdir("../tracks/" + str(music_id)):
+                    if track[:-7] in tracks_names and int(track[-7:-4]) == part_index:
+                        self.send_processed_music_part(track, part_index, music_id)
+                    if (os.path.exists("../tracks/" + str(music_id) + "/" + (track[:-7] + str(part_index)) + ".wav")) and int(track[-7:-4]) == part_index:
+                        os.remove("../tracks/" + str(music_id) + "/" + (track[:-7] + str(part_index)) + ".wav")
 
             # Enviar confirmação de recebimento (basic_ack) após a conclusão bem-sucedida do processamento
             ch.basic_ack(delivery_tag=method.delivery_tag)
