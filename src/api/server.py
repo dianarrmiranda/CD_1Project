@@ -19,15 +19,16 @@ class Server(threading.Thread):
         self.musicData = []
         self.processedParts = {} # {musicID: {instrumento: {part_index: audio_part}}}
         self.num_parts = {} # musicID -> num de partes
-        self.tracks = {} # musicID -> [instrumentos]
+        self.tracks = {} # job_id -> [instrumentos]
         self.startTime = {} #musicId - {part_index: time}
         self.time = {} #musicId - {part_index: time}
         self.size = {} #musicId - {part_index: size}
         self.jobslist = {} #nJob -> {part_index -> [size, time, music_id, track_id[tracks] ]}
         self.nJob = -1
+        self.control = -1
 
         self.progress = {} #musicID -> [progress, [instruments], final]
-        self.jobProgress = {} #musicId -> numero de partes recebidas
+        self.jobProgress = {} #jobId -> numero de partes recebidas
     
         # Rabbit MQ - Enviar não processadas
         self.connection = pika.BlockingConnection(pika.ConnectionParameters('localhost', heartbeat=60, blocked_connection_timeout=10))
@@ -91,8 +92,8 @@ class Server(threading.Thread):
     def split_music(self, music_id: int, tracks_names: list):
         self.nJob += 1
         self.jobslist[self.nJob] = {} 
-        self.tracks[music_id] = tracks_names.copy()
-        self.jobProgress[music_id] = 0
+        self.tracks[self.nJob] = tracks_names.copy()
+        self.jobProgress[self.nJob] = 0
 
         music = self.getMusic(music_id)
 
@@ -105,18 +106,15 @@ class Server(threading.Thread):
         # Dividir a música em partes
         parts = [audio[i * part_duration: (i + 1) * part_duration] for i in range(self.num_parts[music_id])]
 
-        for track in self.tracks[music_id]:
+        for track in self.tracks[self.nJob]:
             if music_id not in self.processedParts:
                 self.processedParts[music_id] = {}  # Cria um dicionário vazio para a chave `music_id`
             if track not in self.processedParts[music_id].keys():
                 self.processedParts[music_id][track] = {}  # Cria um dicionário vazio para a chave `track` dentro de `music_id`
             else:
                 print(' [*] Track ' + track + ' already processed')
-                self.jobProgress[music_id] += 1
+                self.jobProgress[self.nJob] += 1
                 tracks_names.remove(track)  # Remove o instrumento da lista de instrumentos a serem processados
-
-        self.jobProgress[music_id] *= self.num_parts[music_id]
-        self.progress[music_id][0] = (100*self.jobProgress[music_id])/(self.num_parts[music_id] * len(self.tracks[music_id]))
 
         if len(tracks_names) > 0:
         # Enviar as partes para a fila do RabbitMQ
@@ -127,14 +125,19 @@ class Server(threading.Thread):
                     'music_id': music_id,
                     'part_index': i,
                     'instruments': tracks_names,
-                    'part_audio': output.getvalue().decode('latin1')  # Converte os bytes em string
+                    'part_audio': output.getvalue().decode('latin1'),  # Converte os bytes em string
+                    'njob': self.nJob
                 }
 
                 self.startTime[music_id][i] = time.time()
                 self.size[music_id][i] = len(part_data['part_audio'])
                 self.connection.add_callback_threadsafe(lambda: self.send_music_part(part_data))
         else:
-            self.joinInstruments(music_id)
+            if (self.progress[music_id] == 100):
+                self.joinInstruments(music_id, self.nJob)
+        
+        self.jobProgress[self.nJob] *= self.num_parts[music_id]
+        self.progress[music_id][0] = (100*self.jobProgress[self.nJob])/(self.num_parts[music_id] * len(self.tracks[self.nJob]))
 
     def receive_music_parts(self, ch, method, properties, body):
         part_data = json.loads(body)
@@ -142,23 +145,24 @@ class Server(threading.Thread):
         part_index = part_data['part_index']
         part_audio = part_data['part_audio'].encode('latin1')  # Converte a string em bytes
         instrument = part_data['instrument']
+        njob = part_data['njob']
 
         if(self.jobProgress == {}):
             return
 
-        if(self.jobProgress[music_id] < self.num_parts[music_id]*len(self.tracks[music_id])):
-            self.jobProgress[music_id] +=1 
+        if(self.jobProgress[njob] < self.num_parts[music_id]*len(self.tracks[njob])):
+            self.jobProgress[njob] +=1 
         
-        self.progress[music_id][0] = (100*self.jobProgress[music_id])/(self.num_parts[music_id] * len(self.tracks[music_id]))
+        self.progress[music_id][0] = (100*self.jobProgress[njob])/(self.num_parts[music_id] * len(self.tracks[njob]))
 
         self.time[music_id][part_index] = time.time() - self.startTime[music_id][part_index]
 
-        if part_index not in self.jobslist[self.nJob]:
-            self.jobslist[self.nJob][part_index] = [self.size[music_id][part_index], self.time[music_id][part_index], music_id, [instrument]]
+        if part_index not in self.jobslist[njob]:
+            self.jobslist[njob][part_index] = [self.size[music_id][part_index], self.time[music_id][part_index], music_id, [instrument]]
         else:
-            inst = self.jobslist[self.nJob][part_index][-1]
+            inst = self.jobslist[njob][part_index][-1]
             inst.append(instrument)
-            self.jobslist[self.nJob][part_index] = [self.size[music_id][part_index], self.time[music_id][part_index], music_id, inst]
+            self.jobslist[njob][part_index] = [self.size[music_id][part_index], self.time[music_id][part_index], music_id, inst]
         
         # Carregar a parte do áudio
         audio_part = AudioSegment.from_file(BytesIO(part_audio), format='wav')
@@ -170,9 +174,9 @@ class Server(threading.Thread):
         self.processedParts[music_id][instrument][part_index] = audio_part
         # Verificar se todas as partes já foram recebidas
         if len(self.processedParts[music_id][instrument]) == self.num_parts[music_id]:
-             self.join_music_parts(music_id, instrument)
+             self.join_music_parts(music_id, instrument, njob)
 
-    def join_music_parts(self, music_id, instrument):
+    def join_music_parts(self, music_id, instrument, njob):
         print(f' [*] Joining parts of music {music_id} and of instrument {instrument}')
 
         joinedParts = AudioSegment.empty()
@@ -184,14 +188,14 @@ class Server(threading.Thread):
 
         self.progress[music_id][1].append([instrument, '/static/processed/{}_{}.wav'.format(music_id, instrument)])
 
-        if(self.jobProgress[music_id]/self.num_parts[music_id]) == len(self.tracks[music_id]):
-            self.joinInstruments(music_id)
+        if(self.jobProgress[njob]/self.num_parts[music_id]) == len(self.tracks[njob]):
+            self.joinInstruments(music_id, njob)
 
 
-    def joinInstruments(self, music_id):
+    def joinInstruments(self, music_id, njob):
         print(f' [*] Joining instruments of music {music_id}')
 
-        instruments = self.tracks[music_id]
+        instruments = self.tracks[njob]
         joinedParts = AudioSegment.from_wav("static/processed/" + str(music_id) + "_" + instruments[0] + ".wav")
         inst = "_" + instruments[0]
 

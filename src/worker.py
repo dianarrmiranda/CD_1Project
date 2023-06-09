@@ -28,7 +28,7 @@ class Worker:
         print(' [*] Waiting for music parts.')
         self.channel.start_consuming()
 
-        """ def run_forever(self):
+    def run_forever(self):
         while True:
             try:
                 self.start()
@@ -40,13 +40,13 @@ class Worker:
                 print("Worker encontrou um erro:", e)
                 print("Reiniciando o worker...")
                 time.sleep(1)
-                traceback.print_exc() """
+                traceback.print_exc()
 
     def signal_handler(self, sig):
         print('\n [*] Worker done!')
         sys.exit(0)
     
-    def send_processed_music_part(self, track, part_index, music_id):
+    def send_processed_music_part(self, track, part_index, music_id, njob):
         audio = AudioSegment.from_file("../tracks/" + str(music_id) + "/" + track, format='wav')
         output = BytesIO()
         audio.export(output, format='wav')
@@ -62,7 +62,8 @@ class Worker:
             'music_id': music_id,
             'part_index': part_index,
             'instrument': instrument,
-            'part_audio': output.getvalue().decode('latin1')
+            'part_audio': output.getvalue().decode('latin1'),
+            'njob': njob
         }
 
         self.channel.basic_publish(
@@ -94,6 +95,7 @@ class Worker:
         part_index = part_data['part_index']
         part_audio = part_data['part_audio'].encode('latin1')  # Converte a string em bytes
         tracks_names = part_data['instruments']
+        njob = part_data['njob']
         # Carregar a parte do áudio
         audio_part = AudioSegment.from_file(BytesIO(part_audio), format='mp3')
 
@@ -108,19 +110,19 @@ class Worker:
             if part_index < 10:
                 for track in os.listdir("../tracks/" + str(music_id)):
                     if track[:-5] in tracks_names and int(track[-5]) == part_index:
-                        self.send_processed_music_part(track, part_index, music_id)
+                        self.send_processed_music_part(track, part_index, music_id,njob)
                     if (os.path.exists("../tracks/" + str(music_id) + "/" + (track[:-5] + str(part_index)) + ".wav")) and int(track[-5]) == part_index:
                         os.remove("../tracks/" + str(music_id) + "/" + (track[:-5] + str(part_index)) + ".wav")
             elif part_index < 100:
                 for track in os.listdir("../tracks/" + str(music_id)):
                     if track[:-6] in tracks_names and int(track[-6:-4]) == part_index:
-                        self.send_processed_music_part(track, part_index, music_id)
+                        self.send_processed_music_part(track, part_index, music_id, njob)
                     if (os.path.exists("../tracks/" + str(music_id) + "/" + (track[:-6] + str(part_index)) + ".wav")) and int(track[-6:-4]) == part_index:
                         os.remove("../tracks/" + str(music_id) + "/" + (track[:-6] + str(part_index)) + ".wav")
             else:
                 for track in os.listdir("../tracks/" + str(music_id)):
                     if track[:-7] in tracks_names and int(track[-7:-4]) == part_index:
-                        self.send_processed_music_part(track, part_index, music_id)
+                        self.send_processed_music_part(track, part_index, music_id, njob)
                     if (os.path.exists("../tracks/" + str(music_id) + "/" + (track[:-7] + str(part_index)) + ".wav")) and int(track[-7:-4]) == part_index:
                         os.remove("../tracks/" + str(music_id) + "/" + (track[:-7] + str(part_index)) + ".wav")
 
