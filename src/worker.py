@@ -21,8 +21,6 @@ class Worker:
         self.channel.basic_qos(prefetch_count=1)
         self.channel.basic_consume(queue="music_parts", on_message_callback=self.process_music_part)
         torch.set_num_threads(1)
-        
-        self.current_message_info = None
     
     def start(self):
         print(' [*] Waiting for music parts.')
@@ -76,7 +74,6 @@ class Worker:
 
     def process_music_part(self, ch, method, properties, body):
         part_data = json.loads(body)
-        self.current_part_data = [ch, method, properties, body]
         music_id = part_data['music_id']
         part_index = part_data['part_index']
         part_audio = part_data['part_audio'].encode('latin1')  # Converte a string em bytes
@@ -86,8 +83,6 @@ class Worker:
         audio_part = AudioSegment.from_file(BytesIO(part_audio), format='mp3')
 
         print(f' [x] Received part {part_index} of music {music_id}')
-
-        self.current_message_info = {'ch': ch, 'method': method}
 
         try:
             self.process_audio(audio_part, music_id, part_index)
@@ -114,7 +109,6 @@ class Worker:
 
             # Enviar confirmação de recebimento (basic_ack) após a conclusão bem-sucedida do processamento
             ch.basic_ack(delivery_tag=method.delivery_tag)
-            self.current_message_info = None
         except Exception as e:
             print(f"Erro ao processar a parte {part_index} da música {music_id}: {e}")
             # Retornar a parte da música à fila para ser processada novamente
