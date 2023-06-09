@@ -122,7 +122,11 @@ async def process(request: Request, music_id: int, tracks: str = Form(...)):
 
 @app.get("/job", response_class=HTMLResponse)
 async def listJobs(request: Request) -> List[Job]:
-    jobs = server.getJobList()
+
+    try:
+        jobs = server.getJobList()
+    except:
+        raise HTTPException(status_code=405, detail="Invalid input")
 
     jobs_list = []
     for job in jobs:
@@ -134,7 +138,11 @@ async def listJobs(request: Request) -> List[Job]:
 
 @app.get("/job/{job_id}", response_class=HTMLResponse)
 async def getJob(request: Request, job_id: int) -> Job:
-    job = server.getJobList()[job_id]
+
+    try:
+        job = server.getJobList()[job_id]
+    except:
+        raise HTTPException(status_code=404, detail="Job not found")
 
     j = Job(job_id=job_id, size=job[0], time=job[1], music_id=job[2], track_id=job[3])
 
