@@ -24,34 +24,3 @@ https://www.architect.io/blog/2021-01-19/rabbitmq-docker-tutorial/
 
 https://www.rabbitmq.com/tutorials/tutorial-two-python.html
 
-## Juntar áudios:
-
-https://stackoverflow.com/questions/4039158/mixing-two-audio-files-together-with-python
-
-def join_music_parts(self, tracks_to_join, music_folder):
-
-        combined = AudioSegment.from_file(tracks_to_join[0])
-
-        for track in tracks_to_join(1, len(tracks_to_join)):
-            sound = AudioSegment.from_file(track)
-            combined = combined.overlay(sound)
-
-        combined.export(music_folder + "combined.wav", format='wav')
-        
-
-sound1 = AudioSegment.from_wav("/path/to/file1.wav")
-sound2 = AudioSegment.from_wav("/path/to/file2.wav")
-
-combined_sounds = sound1 + sound2
-combined_sounds.export("/output/path.wav", format="wav")
-
-
- ## TODO ##
- FEITO - Fazer parte do jobs
- FEITO - Fault tolerance
- Mudar request body do post music/{music.id} para receber json da lista ids ao inves das strings dos instrumentos
- Dar fix da api toda pra ficar igual ao swagger do professor
- FEITO - Fazer ficheiro bash pra lançar os workers
- FEITO - Testar separar em um número de partes baseado no tamanho da música ao invés de um valor fixo
- Consertar aparecer a música no frontend mesmo ela n estando lá
- FEITO - Colocar exclusão mutua no music ID
