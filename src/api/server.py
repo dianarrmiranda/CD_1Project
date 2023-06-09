@@ -1,5 +1,5 @@
 from math import ceil
-import os
+import os, sys
 import time
 import pika
 from pydub import AudioSegment
@@ -244,11 +244,5 @@ class Server(threading.Thread):
 
         print("[*] Resetting...")
         time.sleep(40)
-
-        self.channel.queue_declare(queue="music_parts")
-        self.channel.queue_declare(queue="processed_parts")
-        self.channel.basic_qos(prefetch_count=1)
-        self.channel.basic_consume(queue="processed_parts", on_message_callback=self.receive_music_parts)
-        self.isRunning = True
 
         print(' [*] Reseted all data')

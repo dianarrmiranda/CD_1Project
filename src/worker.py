@@ -28,20 +28,6 @@ class Worker:
         print(' [*] Waiting for music parts.')
         self.channel.start_consuming()
 
-    def run_forever(self):
-        while True:
-            try:
-                self.start()
-            except (Exception, KeyboardInterrupt) as e:
-                if self.current_message_info:
-                    ch = self.current_message_info['ch']
-                    method = self.current_message_info['method']
-                    ch.basic_nack(delivery_tag=method.delivery_tag, requeue=True)
-                print("Worker encontrou um erro:", e)
-                print("Reiniciando o worker...")
-                time.sleep(1)
-                traceback.print_exc()
-
     def signal_handler(self, sig):
         print('\n [*] Worker done!')
         sys.exit(0)
